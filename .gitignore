@@ -1,0 +1,60 @@
+# Built application files
+*.apk
+*.aar
+*.aab
+*.ap_
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated build directories
+bin/
+gen/
+out/
+build/
+app/build/
+
+# Gradle files
+.gradle/
+
+# Local configuration file (contains local Android SDK paths)
+local.properties
+
+# Proguard / R8
+proguard/
+
+# Log Files
+*.log
+
+# Android Studio Navigation editor
+.navigation/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build folder
+.externalNativeBuild
+.cxx/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Graft context graph local cache
+/graft/
+
+# Agent local artifacts
+.agents/

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Obsidian & Charcoal Dark Surfaces -->
+    <color name="ic_launcher_background">#090b10</color>
+    <color name="obsidian_black">#090b10</color>
+    <color name="charcoal_dark">#090b10</color>
+    <color name="obsidian_void">#0e1117</color>
+    <color name="panel_dark">#12151d</color>
+    <color name="frosted_slate">#12151D</color>
+    <color name="frosted_panel">#12151d</color>
+    <color name="frosted_border">#30ffffff</color>
+
+    <!-- Monochrome Frost Primary & Glass -->
+    <color name="frost_white">#ffffff</color>
+    <color name="frost_glass">#15ffffff</color>
+    <color name="frost_border">#30ffffff</color>
+    <color name="ice_white">#f8fafc</color>
+
+    <!-- Slate Accents -->
+    <color name="slate_light">#cbd5e1</color>
+    <color name="slate_muted">#8c96a5</color>
+    <color name="slate_dim">#64748b</color>
+
+    <!-- Backward-Compatible Aliases (Mapped to Monochrome Frost) -->
+    <color name="cyan_glow">#ffffff</color>
+    <color name="cyan_core">#64748b</color>
+
+    <!-- Status Affordances -->
+    <color name="danger_red">#f43f5e</color>
+    <color name="success_green">#10b981</color>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="scans_cache" path="." />
+    <files-path name="scans_internal" path="." />
+    <external-files-path name="scans_external" path="." />
+    <external-cache-path name="scans_external_cache" path="." />
+</paths>

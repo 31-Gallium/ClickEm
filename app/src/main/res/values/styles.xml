@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ClickEm" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/obsidian_black</item>
+        <item name="android:statusBarColor">#090b10</item>
+        <item name="android:navigationBarColor">#090b10</item>
+        <item name="colorPrimary">@color/frost_white</item>
+        <item name="colorSecondary">@color/slate_dim</item>
+    </style>
+</resources>

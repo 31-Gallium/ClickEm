@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClickEm</string>
+    <string name="camera_permission_required">Camera access is required to scan documents and QR codes.</string>
+    <string name="done">Done</string>
+    <string name="loadout">Loadout</string>
+    <string name="gallery">Gallery</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
+    <string name="filter_original">Original</string>
+    <string name="filter_bw">B/W Clean</string>
+    <string name="filter_magic">Magic Color</string>
+    <string name="filter_gray">Grayscale</string>
+    <string name="save_pdf">Save PDF</string>
+    <string name="save_elongated">Elongated Image</string>
+    <string name="save_images">Save Images</string>
+    <string name="share">Share</string>
+</resources>
