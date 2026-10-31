@@ -7,46 +7,46 @@
 
     <!-- Top-Left Reticle -->
     <path
-        android:fillColor="#6D6E71"
+        android:fillColor="#FFFFFF"
         android:strokeColor="#231F20"
         android:strokeWidth="10"
         android:strokeMiterLimit="10"
         android:pathData="M345.7,537.7L345.7,537.7c0,35.3 28.7,64 64,64h128c35.3,0 64,-28.7 64,-64v-128c0,-35.3 -28.7,-64 -64,-64h0 C431.7,345.7 345.7,431.7 345.7,537.7z" />
     <path
-        android:fillColor="#231F20"
+        android:fillColor="#FFFFFF"
         android:pathData="M128,537.1c0,-226 183.2,-409.1 409.1,-409.1c35.7,0 64.6,28.9 64.6,64.6s-28.9,64.6 -64.6,64.6 c-154.6,0 -279.9,125.3 -279.9,279.9c0,35.7 -28.9,64.6 -64.6,64.6S128,572.8 128,537.1z" />
 
     <!-- Top-Right Reticle -->
     <path
-        android:fillColor="#6D6E71"
+        android:fillColor="#FFFFFF"
         android:strokeColor="#231F20"
         android:strokeWidth="10"
         android:strokeMiterLimit="10"
         android:pathData="M1694.8,537.7L1694.8,537.7c0,35.3 -28.7,64 -64,64h-128c-35.3,0 -64,-28.7 -64,-64v-128c0,-35.3 28.7,-64 64,-64h0 C1608.9,345.7 1694.8,431.7 1694.8,537.7z" />
     <path
-        android:fillColor="#231F20"
+        android:fillColor="#FFFFFF"
         android:pathData="M1912.6,537.1c0,-226 -183.2,-409.1 -409.1,-409.1c-35.7,0 -64.6,28.9 -64.6,64.6s28.9,64.6 64.6,64.6 c154.6,0 279.9,125.3 279.9,279.9c0,35.7 28.9,64.6 64.6,64.6S1912.6,572.8 1912.6,537.1z" />
 
     <!-- Bottom-Left Reticle -->
     <path
-        android:fillColor="#6D6E71"
+        android:fillColor="#FFFFFF"
         android:strokeColor="#231F20"
         android:strokeWidth="10"
         android:strokeMiterLimit="10"
         android:pathData="M345.7,1511.1L345.7,1511.1c0,-35.3 28.7,-64 64,-64h128c35.3,0 64,28.7 64,64v128c0,35.3 -28.7,64 -64,64h0 C431.7,1703.1 345.7,1617.2 345.7,1511.1z" />
     <path
-        android:fillColor="#231F20"
+        android:fillColor="#FFFFFF"
         android:pathData="M128,1511.7c0,226 183.2,409.1 409.1,409.1c35.7,0 64.6,-28.9 64.6,-64.6s-28.9,-64.6 -64.6,-64.6 c-154.6,0 -279.9,-125.3 -279.9,-279.9c0,-35.7 -28.9,-64.6 -64.6,-64.6S128,1476 128,1511.7z" />
 
     <!-- Bottom-Right Reticle -->
     <path
-        android:fillColor="#6D6E71"
+        android:fillColor="#FFFFFF"
         android:strokeColor="#231F20"
         android:strokeWidth="10"
         android:strokeMiterLimit="10"
         android:pathData="M1694.8,1511.1L1694.8,1511.1c0,-35.3 -28.7,-64 -64,-64h-128c-35.3,0 -64,28.7 -64,64v128c0,35.3 28.7,64 64,64h0 C1608.9,1703.1 1694.8,1617.2 1694.8,1511.1z" />
     <path
-        android:fillColor="#231F20"
+        android:fillColor="#FFFFFF"
         android:pathData="M1912.6,1511.7c0,226 183.2,409.1 409.1,409.1c-35.7,0 -64.6,-28.9 -64.6,-64.6s28.9,-64.6 64.6,-64.6 c154.6,0 279.9,-125.3 279.9,-279.9c0,-35.7 28.9,-64.6 64.6,-64.6S1912.6,1476 1912.6,1511.7z" />
 
     <!-- Center Scanner Lens & Monogram CE Emblem -->
