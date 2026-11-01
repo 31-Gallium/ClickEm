@@ -55,7 +55,7 @@ ClickEm provides a streamlined, distraction-free workflow designed for speed, pr
 ### 1. Viewfinder & Live Camera Controls
 
 <div align="center">
-  <img src="docs/images/01_camera_viewfinder.png" alt="ClickEm Camera Viewfinder" width="340" />
+  <img src="docs/screenshots/01_camera_viewfinder.png" alt="ClickEm Camera Viewfinder" width="340" />
 </div>
 
 The primary viewfinder operates in a full-screen, hardware-accelerated **Monochrome Frost** interface:
@@ -81,7 +81,7 @@ The primary viewfinder operates in a full-screen, hardware-accelerated **Monochr
 ### 2. Viewport Aspect Ratio Framing
 
 <div align="center">
-  <img src="docs/images/01b_aspect_ratio_framing.png" alt="Aspect Ratio Viewport Framing" width="340" />
+  <img src="docs/screenshots/01b_aspect_ratio_framing.png" alt="Aspect Ratio Viewport Framing" width="340" />
 </div>
 
 - **Pitch-Black Masking**: Pure `#000000` OLED letterboxing completely masks extraneous sensor areas when framing in `16:9`, `4:3`, or `1:1`.
@@ -93,7 +93,7 @@ The primary viewfinder operates in a full-screen, hardware-accelerated **Monochr
 ### 3. Multi-Page Batch Review Deck
 
 <div align="center">
-  <img src="docs/images/03_batch_review.png" alt="Multi-Page Batch Review Deck" width="340" />
+  <img src="docs/screenshots/03_batch_review.png" alt="Multi-Page Batch Review Deck" width="340" />
 </div>
 
 After capturing one or more pages, tap the badge in the bottom-right corner to access the **Batch Review Deck**:
@@ -113,7 +113,7 @@ After capturing one or more pages, tap the badge in the bottom-right corner to a
 ### 4. Single-Page Fine-Tuning Editor
 
 <div align="center">
-  <img src="docs/images/04_single_page_editor.png" alt="Single-Page Fine-Tuning Editor" width="340" />
+  <img src="docs/screenshots/04_single_page_editor.png" alt="Single-Page Fine-Tuning Editor" width="340" />
 </div>
 
 Fine-tune colors, lighting, and clarity for each scanned page:
@@ -139,7 +139,7 @@ Fine-tune colors, lighting, and clarity for each scanned page:
 ### 5. Interactive Perspective & Crop Quad
 
 <div align="center">
-  <img src="docs/images/05_crop_perspective_editor.png" alt="Perspective Boundary Quad Editor" width="340" />
+  <img src="docs/screenshots/05_crop_perspective_editor.png" alt="Perspective Boundary Quad Editor" width="340" />
 </div>
 
 - **8-Point Polygon Controls**: Drag the 4 corner handles and 4 midpoint handles to frame documents captured at extreme angles.
@@ -151,9 +151,9 @@ Fine-tune colors, lighting, and clarity for each scanned page:
 ### 6. Settings, Biometrics & GitHub Auto-Update
 
 <div align="center">
-  <img src="docs/images/02_settings_and_updates.png" alt="Settings Dashboard" width="340" />
+  <img src="docs/screenshots/02_settings_and_updates.png" alt="Settings Dashboard" width="340" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/02b_updates_and_about.png" alt="Updates and About Card" width="340" />
+  <img src="docs/screenshots/02b_updates_and_about.png" alt="Updates and About Card" width="340" />
 </div>
 
 Access comprehensive hardware, processing, and application management via the Settings screen:
