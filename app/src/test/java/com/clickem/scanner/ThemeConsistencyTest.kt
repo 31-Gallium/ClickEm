@@ -67,6 +67,7 @@ class ThemeConsistencyTest {
         assertTrue("Must find vector drawable files", vectorFiles.isNotEmpty())
 
         for (file in vectorFiles) {
+            if (file.name == "ic_clickem_logo.xml") continue // Authentic brand logo
             val content = file.readText()
             // Check that every vector drawable uses pure white #FFFFFFFF or #FFFFFF for fillColor
             assertTrue(
@@ -89,12 +90,10 @@ class ThemeConsistencyTest {
 
         for (file in listOf(launcher, launcherRound)) {
             val content = file.readText()
-            // Path 1 (camera body): pure white
-            assertTrue("${file.name} camera body must be pure white", content.contains("android:fillColor=\"#FFFFFF\""))
-            // Path 2 (lens circle): obsidian black #090B10 for optical contrast
-            assertTrue("${file.name} lens aperture must be obsidian dark #090B10", content.contains("android:fillColor=\"#090B10\""))
-            // Path 3 (viewfinder corners): slate #64748B
-            assertTrue("${file.name} viewfinder corners must be slate #64748B", content.contains("android:fillColor=\"#64748B\""))
+            assertTrue("${file.name} camera body must be authentic #00AEEF", content.contains("android:fillColor=\"#00AEEF\""))
+            assertTrue("${file.name} reticle arcs must be #231F20", content.contains("android:fillColor=\"#231F20\""))
+            assertTrue("${file.name} reticle squares must be #6D6E71", content.contains("android:fillColor=\"#6D6E71\""))
+            assertTrue("${file.name} must have evenOdd fillType for transparent cutout", content.contains("android:fillType=\"evenOdd\""))
         }
     }
 

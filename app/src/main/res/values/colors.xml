@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Obsidian & Charcoal Dark Surfaces -->
-    <color name="ic_launcher_background">#090b10</color>
+    <color name="ic_launcher_background">#00000000</color>
     <color name="obsidian_black">#090b10</color>
     <color name="charcoal_dark">#090b10</color>
     <color name="obsidian_void">#0e1117</color>

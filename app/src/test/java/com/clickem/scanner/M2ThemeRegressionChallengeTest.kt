@@ -219,15 +219,16 @@ class M2ThemeRegressionChallengeTest {
         val doc = docBuilder.parse(launcherFile)
         val paths = doc.documentElement.getElementsByTagName("path")
 
-        assertEquals("ic_launcher.xml must contain 3 paths (body, aperture, brackets)", 3, paths.length)
+        assertEquals("ic_launcher.xml must contain 3 paths (arcs, squares, body)", 3, paths.length)
 
-        val cameraBody = paths.item(0) as Element
-        val lensAperture = paths.item(1) as Element
-        val brackets = paths.item(2) as Element
+        val arcs = paths.item(0) as Element
+        val squares = paths.item(1) as Element
+        val cameraBody = paths.item(2) as Element
 
-        assertEquals("#FFFFFF", cameraBody.getAttribute("android:fillColor"))
-        assertEquals("#090B10", lensAperture.getAttribute("android:fillColor"))
-        assertEquals("#64748B", brackets.getAttribute("android:fillColor"))
+        assertEquals("#231F20", arcs.getAttribute("android:fillColor"))
+        assertEquals("#6D6E71", squares.getAttribute("android:fillColor"))
+        assertEquals("#00AEEF", cameraBody.getAttribute("android:fillColor"))
+        assertEquals("evenOdd", cameraBody.getAttribute("android:fillType"))
     }
 
     @Test
