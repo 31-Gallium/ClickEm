@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
@@ -588,6 +589,167 @@ class SettingsView(
 
         cardStorage.addView(storageCol)
         contentLayout.addView(cardStorage)
+
+        // Section Title: Updates & About
+        contentLayout.addView(createSectionHeader("UPDATES & ABOUT"))
+
+        val cardUpdate = FrostCardView(context).apply {
+            val p = (16 * density).toInt()
+            setPadding(p, p, p, p)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (12 * density).toInt()
+            }
+            layoutParams = lp
+        }
+
+        val updateLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val appInfoRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (12 * density).toInt()
+            }
+            layoutParams = lp
+        }
+
+        val ivLogo = ImageView(context).apply {
+            setImageResource(R.drawable.ic_clickem_logo)
+            val sz = (44 * density).toInt()
+            layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
+                marginEnd = (12 * density).toInt()
+            }
+        }
+        appInfoRow.addView(ivLogo)
+
+        val appTitleCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val tvAppName = TextView(context).apply {
+            text = "ClickEm Scanner"
+            textSize = 14f
+            setTextColor(Color.parseColor("#FFFFFF"))
+            paint.isFakeBoldText = true
+        }
+        appTitleCol.addView(tvAppName)
+
+        val currentVersion = com.clickem.scanner.util.update.UpdateManager.getAppVersionName(context)
+        val tvAppVersion = TextView(context).apply {
+            text = "Version $currentVersion (GitHub Release)"
+            textSize = 11f
+            setTextColor(Color.parseColor("#8c96a5"))
+        }
+        appTitleCol.addView(tvAppVersion)
+        appInfoRow.addView(appTitleCol)
+        updateLayout.addView(appInfoRow)
+
+        val tvUpdateStatus = TextView(context).apply {
+            text = "Ready to check for updates from GitHub"
+            textSize = 12f
+            setTextColor(Color.parseColor("#CBD5E1"))
+            setPadding(0, 0, 0, (8 * density).toInt())
+        }
+        updateLayout.addView(tvUpdateStatus)
+
+        val updateProgressBar = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+            visibility = View.GONE
+            max = 100
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (6 * density).toInt()
+            ).apply {
+                bottomMargin = (8 * density).toInt()
+            }
+        }
+        updateLayout.addView(updateProgressBar)
+
+        val btnCheckUpdate = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            val pX = (16 * density).toInt()
+            val pY = (10 * density).toInt()
+            setPadding(pX, pY, pX, pY)
+            val bg = GradientDrawable().apply {
+                cornerRadius = 18f * density
+                setColor(Color.parseColor("#18FFFFFF"))
+                setStroke((1 * density).toInt(), Color.parseColor("#32FFFFFF"))
+            }
+            background = bg
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val tvBtnLabel = TextView(context).apply {
+            text = "Check for Updates"
+            textSize = 12.5f
+            setTextColor(Color.parseColor("#FFFFFF"))
+            paint.isFakeBoldText = true
+        }
+        btnCheckUpdate.addView(tvBtnLabel)
+
+        var latestInfo: com.clickem.scanner.util.update.UpdateInfo? = null
+
+        btnCheckUpdate.setOnClickListener {
+            val info = latestInfo
+            if (info != null && info.hasUpdate) {
+                tvBtnLabel.text = "Downloading Update..."
+                btnCheckUpdate.isEnabled = false
+                updateProgressBar.visibility = View.VISIBLE
+                updateProgressBar.progress = 0
+                com.clickem.scanner.util.update.UpdateManager.downloadAndInstall(
+                    context,
+                    info.apkDownloadUrl,
+                    onProgress = { pct ->
+                        updateProgressBar.progress = pct
+                        tvUpdateStatus.text = "Downloading APK: $pct%"
+                    },
+                    onError = { err ->
+                        tvBtnLabel.text = "Retry Update"
+                        btnCheckUpdate.isEnabled = true
+                        tvUpdateStatus.text = "Error: $err"
+                        tvUpdateStatus.setTextColor(Color.parseColor("#F43F5E"))
+                    }
+                )
+            } else {
+                tvBtnLabel.text = "Checking GitHub..."
+                btnCheckUpdate.isEnabled = false
+                tvUpdateStatus.text = "Connecting to GitHub Releases API..."
+                tvUpdateStatus.setTextColor(Color.parseColor("#CBD5E1"))
+
+                com.clickem.scanner.util.update.UpdateManager.checkForUpdate(context) { res ->
+                    btnCheckUpdate.isEnabled = true
+                    if (res == null) {
+                        tvBtnLabel.text = "Check for Updates"
+                        tvUpdateStatus.text = "Could not connect to GitHub. Check internet connection."
+                    } else if (res.hasUpdate) {
+                        latestInfo = res
+                        tvBtnLabel.text = "Install ${res.latestVersion}"
+                        tvUpdateStatus.text = "New release available: ${res.latestVersion}\nTap button to download & install."
+                        tvUpdateStatus.setTextColor(Color.parseColor("#FFFFFF"))
+                    } else {
+                        tvBtnLabel.text = "Check for Updates"
+                        tvUpdateStatus.text = "ClickEm is up to date (${res.currentVersion})."
+                        tvUpdateStatus.setTextColor(Color.parseColor("#10B981"))
+                    }
+                }
+            }
+        }
+
+        updateLayout.addView(btnCheckUpdate)
+        cardUpdate.addView(updateLayout)
+        contentLayout.addView(cardUpdate)
 
         mainScroll.addView(contentLayout)
         addView(mainScroll)

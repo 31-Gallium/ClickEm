@@ -135,6 +135,18 @@ class MainActivity : AppCompatActivity() {
         } else {
             requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
+
+        rootContainer.postDelayed({
+            com.clickem.scanner.util.update.UpdateManager.checkForUpdate(this) { updateInfo ->
+                if (updateInfo?.hasUpdate == true) {
+                    android.widget.Toast.makeText(
+                        this,
+                        "Update available: ${updateInfo.latestVersion}. Check Settings to update.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }, 3000L)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

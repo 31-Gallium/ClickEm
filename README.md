@@ -39,6 +39,137 @@ Unlike conventional scanning utilities bloated with server telemetry, advertisem
 
 ---
 
+## User Guide & Interactive Workflow
+
+ClickEm provides a streamlined, distraction-free workflow designed for speed, precision, and privacy. Below is an end-to-end visual walkthrough of the scanning process.
+
+```
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│  1. Live Camera │ ────> │ 2. Batch Review │ ────> │  3. Page Editor │ ────> │  4. Share & PDF │
+│  & Edge Capture │       │  & Reordering   │       │  & Perspective  │       │     Export      │
+└─────────────────┘       └─────────────────┘       └─────────────────┘       └─────────────────┘
+```
+
+---
+
+### 1. Viewfinder & Live Camera Controls
+
+<div align="center">
+  <img src="docs/images/01_camera_viewfinder.png" alt="ClickEm Camera Viewfinder" width="340" />
+</div>
+
+The primary viewfinder operates in a full-screen, hardware-accelerated **Monochrome Frost** interface:
+
+- **Top HUD Controls (Left to Right)**:
+  - **Torch / Flash**: Toggles continuous torch illumination for low-light document scanning.
+  - **Aspect Ratio Selector**: Cycles between `FULL`, `16:9`, `4:3`, and `1:1` framing modes.
+  - **Grid Guides**: Toggles rule-of-thirds alignment grid lines across the live camera feed.
+  - **Settings Gear**: Opens hardware preferences, biometric options, and the GitHub auto-update manager.
+- **Scanning Mode Selector (Floating Pills)**:
+  - **Document Mode**: Real-time neural edge detection, corner pin tracking, and automatic perspective rectification.
+  - **QR / Barcode Mode**: Edge-accelerated Google ML Kit barcode decoding with instant clipboard extraction.
+- **Bottom Floating Dock**:
+  - **Gallery Import (Left)**: Import existing images or multi-page collections directly from device storage.
+  - **Primary Shutter (Center)**: 72dp high-contrast capture trigger with animated feedback rings.
+  - **Batch Review Badge (Right)**: Real-time counter displaying current session page count; tap anytime to enter the multi-page review deck.
+- **Hardware Shortcuts**:
+  - **Volume Keys**: Configurable in Settings for continuous optical zoom stepping (+0.4x per step) or hardware shutter trigger.
+  - **Physical Fingerprint Shutter**: Tap your phone's physical side power-button or rear scanner to silently capture pages without moving or tapping the screen.
+
+---
+
+### 2. Viewport Aspect Ratio Framing
+
+<div align="center">
+  <img src="docs/images/01b_aspect_ratio_framing.png" alt="Aspect Ratio Viewport Framing" width="340" />
+</div>
+
+- **Pitch-Black Masking**: Pure `#000000` OLED letterboxing completely masks extraneous sensor areas when framing in `16:9`, `4:3`, or `1:1`.
+- **Full-Width Viewport**: The viewport dynamically consumes 100% of the display width in portrait orientation, providing maximum preview scale for documents, books, and receipts.
+- **Edge Boundary Overlay**: Real-time corner reticles identify document corners and display tracking boundary guides.
+
+---
+
+### 3. Multi-Page Batch Review Deck
+
+<div align="center">
+  <img src="docs/images/03_batch_review.png" alt="Multi-Page Batch Review Deck" width="340" />
+</div>
+
+After capturing one or more pages, tap the badge in the bottom-right corner to access the **Batch Review Deck**:
+
+- **Header Bar**:
+  - Displays the project document title (tap to rename) and total page count.
+  - Tap the **Back Arrow** to immediately resume scanning more pages into the current project.
+- **Page Grid & Drag Reordering**:
+  - 2-column scrollable grid with frosted glass backing cards.
+  - **Drag to Reorder**: Long-drag any page card to reposition it within your document sequence.
+  - **Perimeter Hold Progress**: Press and hold any card for 750ms — an animated specular outline traces the card's perimeter before opening the contextual actions menu (**Retake In-Place**, **Rotate 90°**, **Duplicate**, **Delete**).
+- **Single Page Navigation**: Tap any card to open the **Single-Page Fine-Tuning Editor**.
+- **Unified "Share Document" Bar**: Floats cleanly above system 3-button or gesture navigation bars. Tap to collate and export all pages simultaneously.
+
+---
+
+### 4. Single-Page Fine-Tuning Editor
+
+<div align="center">
+  <img src="docs/images/04_single_page_editor.png" alt="Single-Page Fine-Tuning Editor" width="340" />
+</div>
+
+Fine-tune colors, lighting, and clarity for each scanned page:
+
+- **Top Action Bar**:
+  - **Back Navigation**: Returns to the review grid with all edits safely preserved.
+  - **Compare Badge**: Press and hold to momentarily preview the original unedited photo against your applied filter adjustments.
+  - **Save Checkmark**: Commits all adjustments to project storage.
+- **Bottom Navigation Dock**:
+  - **In-Place Retake (Left Camera Icon)**: Re-photograph the current page directly if lighting or focus was imperfect, without losing its sequence in your project.
+  - **Filters / Crop Segmented Dock (Center)**: Seamlessly toggle between color enhancement presets and geometric perspective correction.
+  - **Reset Page (Right Restore Icon)**: Revert all filter parameters and crop points back to raw capture state.
+- **Algorithmic Filter Presets**:
+  - **Magic Color**: Balanced illumination normalization, dynamic color pop, and shadow reduction.
+  - **Clean B/W**: Adaptive Sauvola binarization tuned for ultra-clean black-and-white text documents and forms.
+  - **Text Pop**: Contrast-limited unsharp masking designed for low-contrast handwriting and invoices.
+  - **Grayscale**: High-fidelity luminance desaturation.
+  - **Dark Invert**: Dark-mode document inversion for reading comfort on OLED screens.
+  - **Original**: Full-resolution raw camera sensor capture.
+
+---
+
+### 5. Interactive Perspective & Crop Quad
+
+<div align="center">
+  <img src="docs/images/05_crop_perspective_editor.png" alt="Perspective Boundary Quad Editor" width="340" />
+</div>
+
+- **8-Point Polygon Controls**: Drag the 4 corner handles and 4 midpoint handles to frame documents captured at extreme angles.
+- **Sub-Pixel Bilinear Warping**: High-performance geometric perspective mapping transforms trapezoidal shapes into flat, square orthographic documents.
+- **Rotation Affordances**: Rotate clockwise or counter-clockwise in 90° increments with instantaneous preview rendering.
+
+---
+
+### 6. Settings, Biometrics & GitHub Auto-Update
+
+<div align="center">
+  <img src="docs/images/02_settings_and_updates.png" alt="Settings Dashboard" width="340" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/images/02b_updates_and_about.png" alt="Updates and About Card" width="340" />
+</div>
+
+Access comprehensive hardware, processing, and application management via the Settings screen:
+
+- **Hardware Volume Action**: Toggle between linear optical zoom or instant burst capture for volume buttons.
+- **Intelligent Biometric Sensor Detection**:
+  - **Physical Sensors (Side Power Key / Rear)**: Automatically enabled for silent tactile capture gestures.
+  - **Under-Display Sensors (In-Screen UDFPS / Optical)**: Automatically detected and disabled by default so on-screen viewfinder touches and UI taps are never hijacked or interrupted.
+- **Export Resolution Defaults**: Choose between Low (1600px), Medium (2400px), or Native Full-Resolution capture pipelines.
+- **GitHub Auto-Update System**:
+  - Built directly into the app using ClickEm's native update engine (inspired by [31-Gallium/Yeval](https://github.com/31-Gallium/Yeval)).
+  - Tap **"Check for Updates"** to query the latest releases from `31-Gallium/ClickEm`.
+  - When an update is detected, download progress is reported in real time, and the native Android Package Installer is launched automatically via secure `FileProvider`.
+
+---
+
 ## Architectural & Technical Deep Dive
 
 ### 1. Viewfinder & CameraX Ingestion Layer
