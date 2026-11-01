@@ -43,10 +43,12 @@ class SettingsView(
         }
 
         val initialSafeTop = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
+        val initialSafeBottom = com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context)
+        val pad = (20 * density).toInt()
+        val baseBottomPad = (40 * density).toInt()
         val contentLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            val pad = (20 * density).toInt()
-            setPadding(pad, initialSafeTop + (16 * density).toInt(), pad, (40 * density).toInt())
+            setPadding(pad, initialSafeTop + (16 * density).toInt(), pad, baseBottomPad + initialSafeBottom)
         }
 
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
@@ -54,10 +56,14 @@ class SettingsView(
                 androidx.core.view.WindowInsetsCompat.Type.statusBars() or
                     androidx.core.view.WindowInsetsCompat.Type.displayCutout()
             )
+            val navInsets = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
             val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
             val topInset = maxOf(statusBarInsets.top, safeMin)
-            val pad = (20 * density).toInt()
-            contentLayout.setPadding(pad, topInset + (16 * density).toInt(), pad, (40 * density).toInt())
+            val safeBottom = maxOf(navInsets.bottom, com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context))
+            contentLayout.setPadding(pad, topInset + (16 * density).toInt(), pad, baseBottomPad + safeBottom)
             insets
         }
 
@@ -360,11 +366,15 @@ class SettingsView(
         }
         fpCol.addView(tvFpTitle)
 
+        val fpLocation = com.clickem.scanner.util.settings.FingerprintSensorUtil.getSensorLocation(context)
+        val locationLabel = com.clickem.scanner.util.settings.FingerprintSensorUtil.getSensorLocationLabel(context)
         val tvFpSub = TextView(context).apply {
-            text = if (isFpSupported) {
-                "Tap physical fingerprint sensor to take scans"
-            } else {
-                "Side/rear fingerprint gesture (Active on supported hardware)"
+            text = when {
+                !isFpSupported -> "No biometric scanner hardware detected on device"
+                fpLocation == com.clickem.scanner.util.settings.FingerprintSensorUtil.SensorLocation.UNDER_DISPLAY ->
+                    "Detected: $locationLabel. Disabled by default to prevent conflicts with on-screen touches."
+                else ->
+                    "Detected: $locationLabel. Tap physical sensor to capture scan."
             }
             textSize = 11f
             setTextColor(Color.parseColor("#8c96a5"))

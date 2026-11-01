@@ -145,21 +145,14 @@ class LoadoutView(
         )
 
         val initialSafeTop = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
+        val initialSafeBottom = com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context)
+        val baseNavMargin = (22 * density).toInt()
+        val baseContentBottom = (96 * density).toInt()
+
         val contentLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            setPadding(0, initialSafeTop + (12 * density).toInt(), 0, (96 * density).toInt())
-        }
-
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
-            val statusBarInsets = insets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.statusBars() or
-                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
-            )
-            val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
-            val topInset = maxOf(statusBarInsets.top, safeMin)
-            contentLayout.setPadding(0, topInset + (12 * density).toInt(), 0, (96 * density).toInt())
-            insets
+            setPadding(0, initialSafeTop + (12 * density).toInt(), 0, baseContentBottom + initialSafeBottom)
         }
 
         // 2. Top Header
@@ -352,7 +345,7 @@ class LoadoutView(
                 LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                setMargins(0, 0, 0, (22 * density).toInt())
+                setMargins(0, 0, 0, baseNavMargin + initialSafeBottom)
             }
             setTabs(listOf(R.drawable.ic_loadout, R.drawable.ic_camera, R.drawable.ic_gallery), initialIndex = 0)
             onTabSelected = { tabIdx ->
@@ -364,6 +357,26 @@ class LoadoutView(
             }
         }
         addView(navPill)
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
+            val statusBarInsets = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.statusBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
+            val navInsets = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
+            val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
+            val topInset = maxOf(statusBarInsets.top, safeMin)
+            val safeBottom = maxOf(navInsets.bottom, com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context))
+            contentLayout.setPadding(0, topInset + (12 * density).toInt(), 0, baseContentBottom + safeBottom)
+            (navPill.layoutParams as? LayoutParams)?.let { lp ->
+                lp.bottomMargin = baseNavMargin + safeBottom
+                navPill.layoutParams = lp
+            }
+            insets
+        }
 
         progressBar = ProgressBar(context).apply {
             visibility = View.GONE

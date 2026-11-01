@@ -276,8 +276,6 @@ class ViewfinderOverlayView @JvmOverloads constructor(
             if (r.right < w) {
                 canvas.drawRect(r.right, r.top, w, r.bottom, pitchBlackCutoffPaint)
             }
-            // Draw crisp specular frost rim around the active viewport
-            canvas.drawRect(r.left, r.top, r.right, r.bottom, frameBorderPaint)
         }
     }
 

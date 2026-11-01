@@ -40,7 +40,16 @@ class SettingsManager(private val context: Context) {
         set(value) = prefs.edit().putString(KEY_VOLUME_ACTION, value.name).apply()
 
     var isFingerprintShutterEnabled: Boolean
-        get() = prefs.getBoolean(KEY_FINGERPRINT_SHUTTER, false)
+        get() {
+            if (!prefs.contains(KEY_FINGERPRINT_SHUTTER)) {
+                val isUnderDisplay = FingerprintSensorUtil.isUnderDisplay(context)
+                val isSupported = isFingerprintHardwareSupported()
+                val defaultVal = isSupported && !isUnderDisplay
+                prefs.edit().putBoolean(KEY_FINGERPRINT_SHUTTER, defaultVal).apply()
+                return defaultVal
+            }
+            return prefs.getBoolean(KEY_FINGERPRINT_SHUTTER, false)
+        }
         set(value) = prefs.edit().putBoolean(KEY_FINGERPRINT_SHUTTER, value).apply()
 
     var defaultFilterMode: FilterMode

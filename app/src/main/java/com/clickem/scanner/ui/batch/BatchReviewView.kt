@@ -67,6 +67,11 @@ class BatchReviewView(
         isFocusable = true
         setBackgroundColor(Color.BLACK)
 
+        val initialSafeTop = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
+        val initialSafeBottom = com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context)
+        val baseShareMargin = (22 * density).toInt()
+        val baseGridBottomPad = (90 * density).toInt()
+
         val mainLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             isClickable = true
@@ -87,7 +92,6 @@ class BatchReviewView(
             val pX = (16 * density).toInt()
             val pY = (12 * density).toInt()
             setPadding(pX, pY, pX, pY)
-            val initialSafeTop = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
             layoutParams = LinearLayout.LayoutParams(
                 (resources.displayMetrics.widthPixels * 0.92).toInt(),
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -97,20 +101,7 @@ class BatchReviewView(
             }
         }
 
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(headerBar) { v, insets ->
-            val statusBars = insets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.statusBars() or
-                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
-            )
-            val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
-            val topInset = maxOf(statusBars.top, safeMin)
-            val lp = v.layoutParams as? LinearLayout.LayoutParams
-            if (lp != null) {
-                lp.topMargin = topInset + (8 * density).toInt()
-                v.layoutParams = lp
-            }
-            insets
-        }
+
 
         val btnResumeCam = ImageView(context).apply {
             setImageResource(R.drawable.ic_back)
@@ -279,7 +270,7 @@ class BatchReviewView(
             layoutManager = GridLayoutManager(context, 2)
             adapter = this@BatchReviewView.adapter
             clipToPadding = false
-            setPadding((12 * density).toInt(), 0, (12 * density).toInt(), (90 * density).toInt())
+            setPadding((12 * density).toInt(), 0, (12 * density).toInt(), baseGridBottomPad + initialSafeBottom)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
@@ -332,7 +323,7 @@ class BatchReviewView(
                 LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                setMargins(0, 0, 0, (22 * density).toInt())
+                setMargins(0, 0, 0, baseShareMargin + initialSafeBottom)
             }
         }
 
@@ -376,6 +367,36 @@ class BatchReviewView(
 
         addView(mainLayout)
         addView(shareBar)
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
+            val statusBars = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.statusBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
+            val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
+            val topInset = maxOf(statusBars.top, safeMin)
+            (headerBar.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
+                lp.topMargin = topInset + (8 * density).toInt()
+                headerBar.layoutParams = lp
+            }
+
+            val navBottom = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            ).bottom
+            val safeBottom = maxOf(navBottom, com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context))
+            (shareBar.layoutParams as? LayoutParams)?.let { lp ->
+                lp.bottomMargin = baseShareMargin + safeBottom
+                shareBar.layoutParams = lp
+            }
+            gridRv.setPadding(
+                (12 * density).toInt(),
+                0,
+                (12 * density).toInt(),
+                baseGridBottomPad + safeBottom
+            )
+            insets
+        }
 
         progressBar = ProgressBar(context).apply {
             visibility = View.GONE

@@ -265,16 +265,6 @@ class SinglePageEditView(
             val initTop = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
             val padH = (16 * density).toInt()
             setPadding(padH, initTop + (8 * density).toInt(), padH, (12 * density).toInt())
-            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
-                val statusBarInsets = insets.getInsets(
-                    androidx.core.view.WindowInsetsCompat.Type.statusBars() or
-                        androidx.core.view.WindowInsetsCompat.Type.displayCutout()
-                )
-                val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
-                val topInset = maxOf(statusBarInsets.top, safeMin)
-                v.setPadding(padH, topInset + (8 * density).toInt(), padH, (12 * density).toInt())
-                insets
-            }
             addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
                 val h = bottom - top
                 if (h > 0 && h != topBarInsetPx) {
@@ -439,11 +429,14 @@ class SinglePageEditView(
         addView(topBar)
 
         // 4. Bottom Categorized Tool Sheet (Flush Monochrome Frost Panel)
+        val bottomSheetPadH = (14 * density).toInt()
+        val initialSafeBottom = com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context)
+        val baseBottomPad = (16 * density).toInt()
+
         val bottomContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            val p = (14 * density).toInt()
-            setPadding(p, (8 * density).toInt(), p, (16 * density).toInt())
+            setPadding(bottomSheetPadH, (8 * density).toInt(), bottomSheetPadH, baseBottomPad + initialSafeBottom)
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.BOTTOM
             }
@@ -570,6 +563,25 @@ class SinglePageEditView(
 
         bottomContainer.addView(navDockRow)
         addView(bottomContainer)
+
+        val padH = (16 * density).toInt()
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
+            val statusBarInsets = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.statusBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
+            val navInsets = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
+            val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
+            val topInset = maxOf(statusBarInsets.top, safeMin)
+            topBar.setPadding(padH, topInset + (8 * density).toInt(), padH, (12 * density).toInt())
+
+            val safeBottom = maxOf(navInsets.bottom, com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context))
+            bottomContainer.setPadding(bottomSheetPadH, (8 * density).toInt(), bottomSheetPadH, baseBottomPad + safeBottom)
+            insets
+        }
 
         updateTopBarTitle()
         renderToolCategoryUI()

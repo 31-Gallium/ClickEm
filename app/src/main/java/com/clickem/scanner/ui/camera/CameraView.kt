@@ -606,13 +606,17 @@ class CameraView(
         updateModePillStyles()
 
         // 5E. Primary Shutter Action Row (Google Pixel Camera / CamScanner 3-Slot Triad)
+        val dockHPad = (20 * density).toInt()
+        val defaultDockBottomPad = (20 * density).toInt()
+        val initialSafeBottom = com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context)
+        val initialBottomPad = maxOf(defaultDockBottomPad, initialSafeBottom + (8 * density).toInt())
+
         val dockBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false
             clipToPadding = false
-            val hPad = (20 * density).toInt()
-            setPadding(hPad, (8 * density).toInt(), hPad, (20 * density).toInt())
+            setPadding(dockHPad, (8 * density).toInt(), dockHPad, initialBottomPad)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -789,6 +793,17 @@ class CameraView(
         bottomContainer.addView(dockBar)
         bottomZoneWrapper.addView(bottomContainer)
         addView(bottomZoneWrapper)
+
+        // Dynamic 3-button navigation bar adjustment for floating dock
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
+            val navBottom = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            ).bottom
+            val safeBottom = maxOf(defaultDockBottomPad, navBottom + (8 * density).toInt())
+            dockBar.setPadding(dockHPad, (8 * density).toInt(), dockHPad, safeBottom)
+            insets
+        }
 
         TfliteDocumentDetector.init(context)
         startCamera()
