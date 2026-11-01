@@ -4,151 +4,155 @@
 
 # ClickEm
 
-**An Intelligent, Edge-Accelerated Mobile Document Scanner & Processing Suite**
+**A Clean, Fast & Privacy-Focused Mobile Document Scanner for Android**
 
 [![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B-brightgreen.svg?style=flat-square)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin%202.0-blue.svg?style=flat-square&logo=kotlin)](https://kotlinlang.org)
 [![CameraX](https://img.shields.io/badge/Camera-CameraX%201.3-orange.svg?style=flat-square)](https://developer.android.com/training/camerax)
-[![Computer Vision](https://img.shields.io/badge/CV-TensorFlow%20Lite%20%2B%20OpenCV-red.svg?style=flat-square)](https://www.tensorflow.org/lite)
 [![Theme](https://img.shields.io/badge/Aesthetic-Monochrome%20Frost-black.svg?style=flat-square)](#design-philosophy--monochrome-frost)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-*Engineered by [31-Gallium](https://github.com/31-Gallium)*
+*Created by [31-Gallium](https://github.com/31-Gallium)*
 
 </div>
 
 ---
 
-## Executive Overview
+## About ClickEm
 
-**ClickEm** is an open-source, offline-first mobile document capture, edge computer-vision rectification, and multi-page document curation pipeline for Android. Crafted from the ground up in idiomatic Kotlin, ClickEm unifies high-performance camera streaming, hardware-accelerated homography quad transformations, neural boundary inference, and a distraction-free **Monochrome Frost** aesthetic.
+**ClickEm** is an open-source document scanner for Android designed to be fast, simple, and completely private.
 
-Unlike conventional scanning utilities bloated with server telemetry, advertisements, and cloud lock-in, ClickEm operates strictly on-device, preserving user privacy with zero cloud dependencies and cryptographic biometric vault gating.
+Scan multi-page documents, receipts, contracts, and notes in seconds. ClickEm automatically detects paper boundaries, flattens tilted angles, sharpens faint text, and compiles multi-page PDFs ready to share—all entirely on your device with no ads, no trackers, and no internet connection required.
 
----
-
-## Key Capabilities
-
-- **Real-Time Edge Boundary Inference**: Dual-engine boundary detection combining custom-quantized TensorFlow Lite edge models with sub-millisecond OpenCV convex hull and geometric polygon refinement.
-- **Perspective Homography Rectification**: Sub-pixel bilinear warp perspective transformations flattening skewed documents, receipts, and whiteboard captures into pristine orthographic planes.
-- **Algorithmic Filter Processing**: Parameterized digital document enhancers including adaptive Sauvola binarization (Clean B/W), unsharp masking (Text Pop), luminance desaturation (Grayscale), and inverted dark-mode reading.
-- **Hardware Shutter & Volume Interception**: Native hardware volume key policy orchestrating instant multi-burst capture or linear optical zoom while isolating third-party accessibility overlays.
-- **Multi-Page Batch Sequencing**: Non-blocking `ItemTouchHelper` drag-reordering alongside a custom perimeter progress bar outline on card hold for contextual single-page actions.
-- **Multi-Format Export Collation**: Production-grade PDF generation with parameterized page sizing and image compression, standalone ZIP archives, and direct single-page intent dispatching.
-- **Zero-Latency Monochrome Frost UI**: Pure OLED pitch-black void backings (`#000000`), frosted acrylic HUD surfaces, specular rim strokes, dynamic system-notch clearances, and floating controls.
+### Key Highlights
+- ⚡ **Instant Document Detection**: Real-time corner detection captures clean, aligned pages without manual framing.
+- 🔒 **100% Offline & Private**: Everything processes locally on your phone. No cloud servers, accounts, or telemetry.
+- 📄 **Multi-Page PDF & Image Export**: Merge scans into collated PDFs, save them as high-res images, or stitch them into a continuous vertical image.
+- 📁 **Custom Export Folder**: Choose exactly where your exported PDFs save on your internal storage or SD card.
+- 🎛️ **Hardware Shortcuts**: Snap pages or zoom using your physical volume buttons or side fingerprint sensor.
+- 🌑 **Monochrome Frost Theme**: Pure OLED pitch-black void with frosted glass controls designed for battery life and night comfort.
 
 ---
 
-## User Guide & Interactive Workflow
+## User Guide: How to Scan & Create PDFs
 
-ClickEm provides a streamlined, distraction-free workflow designed for speed, precision, and privacy. Below is an end-to-end visual walkthrough of the scanning process.
+Follow this simple step-by-step workflow to scan documents, arrange pages, and generate your PDFs:
 
 ```
-┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│  1. Live Camera │ ────> │ 2. Batch Review │ ────> │  3. Page Editor │ ────> │  4. Share & PDF │
-│  & Edge Capture │       │  & Reordering   │       │  & Perspective  │       │     Export      │
-└─────────────────┘       └─────────────────┘       └─────────────────┘       └─────────────────┘
+┌─────────────────────────┐       ┌─────────────────────────┐       ┌─────────────────────────┐       ┌─────────────────────────┐
+│     1. Point & Snap     │ ────> │   2. Review & Reorder   │ ────> │   3. Fine-Tune Pages    │ ────> │  4. Export to PDF/Share │
+│   Camera auto-detects   │       │ Drag cards to sequence  │       │  Adjust corners/filters │       │ Save to folder or share │
+└─────────────────────────┘       └─────────────────────────┘       └─────────────────────────┘       └─────────────────────────┘
 ```
 
 ---
 
-### 1. Viewfinder & Live Camera Controls
+### Step 1: Taking Scans with the Camera
 
 <div align="center">
   <img src="docs/screenshots/01_camera_viewfinder.png" alt="ClickEm Camera Viewfinder" width="340" />
 </div>
 
-The primary viewfinder operates in a full-screen, hardware-accelerated **Monochrome Frost** interface:
-
-- **Top HUD Controls (Left to Right)**:
-  - **Torch / Flash**: Toggles continuous torch illumination for low-light document scanning.
-  - **Aspect Ratio Selector**: Cycles between `FULL`, `16:9`, `4:3`, and `1:1` framing modes.
-  - **Grid Guides**: Toggles rule-of-thirds alignment grid lines across the live camera feed.
-  - **Settings Gear**: Opens hardware preferences, biometric options, and the GitHub auto-update manager.
-- **Scanning Mode Selector (Floating Pills)**:
-  - **Document Mode**: Real-time neural edge detection, corner pin tracking, and automatic perspective rectification.
-  - **QR / Barcode Mode**: Edge-accelerated Google ML Kit barcode decoding with instant clipboard extraction.
-- **Bottom Floating Dock**:
-  - **Gallery Import (Left)**: Import existing images or multi-page collections directly from device storage.
-  - **Primary Shutter (Center)**: 72dp high-contrast capture trigger with animated feedback rings.
-  - **Batch Review Badge (Right)**: Real-time counter displaying current session page count; tap anytime to enter the multi-page review deck.
-- **Hardware Shortcuts**:
-  - **Volume Keys**: Configurable in Settings for continuous optical zoom stepping (+0.4x per step) or hardware shutter trigger.
-  - **Physical Fingerprint Shutter**: Tap your phone's physical side power-button or rear scanner to silently capture pages without moving or tapping the screen.
+1. **Aim at your document**: Hold your phone over the paper, receipt, or book. ClickEm highlights the page boundaries with corner tracking guides.
+2. **Snap the page**: Tap the circular white **Shutter** button in the center.
+3. **Capture multiple pages**: Keep pointing and snapping! Each photo you take is immediately saved and counted in the bottom-right batch badge.
+4. **Helpful camera controls**:
+   - **Flash / Torch (Top Left)**: Turn on continuous illumination for scanning in dim environments.
+   - **Aspect Ratio**: Tap the ratio pill to cycle between **Full Screen**, **16:9**, **4:3**, and **1:1**.
+   - **Grid Lines**: Toggle rule-of-thirds grid lines for framing.
+   - **Scan Modes (Pills above shutter)**: Switch between **Document** mode (page scanning) and **QR / Barcode** mode (instant barcode scanning).
+5. **Hardware shortcuts**:
+   - **Volume Buttons**: Press Volume Up/Down to zoom or trigger the shutter (configurable in Settings).
+   - **Side Fingerprint Sensor**: If your phone has a physical side power-button or rear fingerprint sensor, simply touch it to take a photo silently without shaking the phone.
 
 ---
 
-### 2. Viewport Aspect Ratio Framing
+### Step 2: Framing & Aspect Ratio
 
 <div align="center">
   <img src="docs/screenshots/01b_aspect_ratio_framing.png" alt="Aspect Ratio Viewport Framing" width="340" />
 </div>
 
-- **Pitch-Black Masking**: Pure `#000000` OLED letterboxing completely masks extraneous sensor areas when framing in `16:9`, `4:3`, or `1:1`.
-- **Full-Width Viewport**: The viewport dynamically consumes 100% of the display width in portrait orientation, providing maximum preview scale for documents, books, and receipts.
-- **Edge Boundary Overlay**: Real-time corner reticles identify document corners and display tracking boundary guides.
+Choose the framing ratio that best fits your document:
+- **Full Screen**: Uses the entire camera sensor preview.
+- **16:9 & 4:3**: Standard document ratios with pitch-black letterbox masking for focused framing.
+- **1:1 Square**: Perfect for square receipts, identity badges, or ID cards.
 
 ---
 
-### 3. Multi-Page Batch Review Deck
+### Step 3: Reviewing & Reordering Pages
 
 <div align="center">
   <img src="docs/screenshots/03_batch_review.png" alt="Multi-Page Batch Review Deck" width="340" />
 </div>
 
-After capturing one or more pages, tap the badge in the bottom-right corner to access the **Batch Review Deck**:
+When you have captured all your pages, tap the **batch counter button in the bottom-right corner** to open the **Review Deck**:
 
-- **Header Bar**:
-  - Displays the project document title (tap to rename) and total page count.
-  - Tap the **Back Arrow** to immediately resume scanning more pages into the current project.
-- **Page Grid & Drag Reordering**:
-  - 2-column scrollable grid with frosted glass backing cards.
-  - **Drag to Reorder**: Long-drag any page card to reposition it within your document sequence.
-  - **Perimeter Hold Progress**: Press and hold any card for 750ms — an animated specular outline traces the card's perimeter before opening the contextual actions menu (**Retake In-Place**, **Rotate 90°**, **Duplicate**, **Delete**).
-- **Single Page Navigation**: Tap any card to open the **Single-Page Fine-Tuning Editor**.
-- **Unified "Share Document" Bar**: Floats cleanly above system 3-button or gesture navigation bars. Tap to collate and export all pages simultaneously.
+1. **View your document**: All scanned pages appear in a clean 2-column grid.
+2. **Reorder pages**: Press and drag any page card to move it into the correct order.
+3. **Quick actions**: Press and hold any card for a moment until the glowing border fills up. This opens a quick menu to:
+   - **Retake In-Place**: Re-shoot that specific page if it came out blurry, without changing its page position.
+   - **Rotate 90°**: Turn sideways pages right-side up.
+   - **Duplicate**: Create a copy of the page.
+   - **Delete**: Remove the page from the document.
+4. **Add more pages**: Tap the **Back Arrow** at top-left anytime to return to the camera and keep scanning into the same document.
 
 ---
 
-### 4. Single-Page Fine-Tuning Editor
+### Step 4: Fine-Tuning Crop & Enhancing Text
 
 <div align="center">
   <img src="docs/screenshots/04_single_page_editor.png" alt="Single-Page Fine-Tuning Editor" width="340" />
 </div>
 
-Fine-tune colors, lighting, and clarity for each scanned page:
+Tap directly on any page thumbnail in the Review Deck to open the **Page Editor**:
 
-- **Top Action Bar**:
-  - **Back Navigation**: Returns to the review grid with all edits safely preserved.
-  - **Compare Badge**: Press and hold to momentarily preview the original unedited photo against your applied filter adjustments.
-  - **Save Checkmark**: Commits all adjustments to project storage.
-- **Bottom Navigation Dock**:
-  - **In-Place Retake (Left Camera Icon)**: Re-photograph the current page directly if lighting or focus was imperfect, without losing its sequence in your project.
-  - **Filters / Crop Segmented Dock (Center)**: Seamlessly toggle between color enhancement presets and geometric perspective correction.
-  - **Reset Page (Right Restore Icon)**: Revert all filter parameters and crop points back to raw capture state.
-- **Algorithmic Filter Presets**:
-  - **Magic Color**: Balanced illumination normalization, dynamic color pop, and shadow reduction.
-  - **Clean B/W**: Adaptive Sauvola binarization tuned for ultra-clean black-and-white text documents and forms.
-  - **Text Pop**: Contrast-limited unsharp masking designed for low-contrast handwriting and invoices.
-  - **Grayscale**: High-fidelity luminance desaturation.
-  - **Dark Invert**: Dark-mode document inversion for reading comfort on OLED screens.
-  - **Original**: Full-resolution raw camera sensor capture.
+1. **Choose a Document Filter**:
+   - **Magic Color**: Restores natural colors while brightening dark shadows and paper yellowing.
+   - **Clean B/W**: Turns handwritten notes and printed documents into crisp, high-contrast black-and-white.
+   - **Text Pop**: Sharpens pencil and faint ink on invoices and receipts.
+   - **Grayscale**: Converts photos and diagrams to smooth monochrome.
+   - **Original**: Keeps the unedited camera capture.
+2. **Compare Changes**: Press and hold the **Compare** badge at the top to see the original photo side-by-side with your edited version.
+3. **Save**: Tap the checkmark to save your changes and return to the batch grid.
 
 ---
 
-### 5. Interactive Perspective & Crop Quad
+### Step 5: Adjusting Perspective & Cropping Corners
 
 <div align="center">
   <img src="docs/screenshots/05_crop_perspective_editor.png" alt="Perspective Boundary Quad Editor" width="340" />
 </div>
 
-- **8-Point Polygon Controls**: Drag the 4 corner handles and 4 midpoint handles to frame documents captured at extreme angles.
-- **Sub-Pixel Bilinear Warping**: High-performance geometric perspective mapping transforms trapezoidal shapes into flat, square orthographic documents.
-- **Rotation Affordances**: Rotate clockwise or counter-clockwise in 90° increments with instantaneous preview rendering.
+If your document was photographed at an angle or on an uneven desk:
+
+1. Tap **Crop / Perspective** in the Page Editor.
+2. Drag the **4 corner circles** to line up with the four corners of your document.
+3. ClickEm will straighten and flatten the document into a neat, rectangular page.
+4. Use the rotation buttons to quickly turn the page 90° clockwise or counter-clockwise.
 
 ---
 
-### 6. Settings, Biometrics & GitHub Auto-Update
+### Step 6: Creating & Sharing Your PDF
+
+<div align="center">
+  <img src="docs/screenshots/03_batch_review.png" alt="Exporting PDF from Batch Review" width="340" />
+</div>
+
+Once your pages are reviewed and arranged:
+
+1. Tap the **"Share Document"** button at the bottom of the Review Deck.
+2. Select your desired format:
+   - **PDF Document**: Generates a clean, multi-page PDF ready for work, school, or archival.
+   - **Stitched Long Image**: Combines all pages into a continuous vertical image (ideal for long receipts or chat sharing).
+   - **Individual Images (ZIP)**: Saves all pages as separate high-resolution JPEG files.
+3. Type a title for your document and tap **Export**.
+4. The Android share sheet opens automatically—send your PDF directly via Gmail, WhatsApp, Drive, Telegram, or print it wirelessly!
+5. A copy is also saved to your device's export folder so you can access it anytime in your file manager.
+
+---
+
+### Step 7: Settings & Choosing Your Export Folder
 
 <div align="center">
   <img src="docs/screenshots/02_settings_and_updates.png" alt="Settings Dashboard" width="340" />
@@ -156,17 +160,14 @@ Fine-tune colors, lighting, and clarity for each scanned page:
   <img src="docs/screenshots/02b_updates_and_about.png" alt="Updates and About Card" width="340" />
 </div>
 
-Access comprehensive hardware, processing, and application management via the Settings screen:
+Tap the **Gear icon** in the top-right corner of the camera screen to open Settings:
 
-- **Hardware Volume Action**: Toggle between linear optical zoom or instant burst capture for volume buttons.
-- **Intelligent Biometric Sensor Detection**:
-  - **Physical Sensors (Side Power Key / Rear)**: Automatically enabled for silent tactile capture gestures.
-  - **Under-Display Sensors (In-Screen UDFPS / Optical)**: Automatically detected and disabled by default so on-screen viewfinder touches and UI taps are never hijacked or interrupted.
-- **Export Resolution Defaults**: Choose between Low (1600px), Medium (2400px), or Native Full-Resolution capture pipelines.
-- **GitHub Auto-Update System**:
-  - Built directly into the app using ClickEm's native update engine (inspired by [31-Gallium/Yeval](https://github.com/31-Gallium/Yeval)).
-  - Tap **"Check for Updates"** to query the latest releases from `31-Gallium/ClickEm`.
-  - When an update is detected, download progress is reported in real time, and the native Android Package Installer is launched automatically via secure `FileProvider`.
+- **Export Destination**: Tap **Browse** to choose any folder on your device or SD card where your scans and PDFs should be saved. Tap **Reset** anytime to restore the default `/Downloads/ClickEm/` folder.
+- **Volume Key Behavior**: Choose whether volume keys zoom in/out or trigger the shutter.
+- **Fingerprint Shutter**: Enable or disable shutter snapping via physical fingerprint sensors. (In-screen sensors are automatically disabled to prevent accidental screen taps).
+- **Default Capture Filter**: Set your favorite filter (e.g. Magic Color or Clean B/W) to apply automatically to every new scan.
+- **Default Export Quality**: Choose between High / Native, Medium (2400px), or Low (1600px) file sizes.
+- **In-App GitHub Updates**: Tap **Check for Updates** to check for newer ClickEm releases directly from GitHub and install them with one tap.
 
 ---
 

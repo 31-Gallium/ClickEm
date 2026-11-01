@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.widget.SwitchCompat
 import com.clickem.scanner.R
 import com.clickem.scanner.model.FilterMode
@@ -23,10 +24,13 @@ import com.clickem.scanner.util.settings.VolumeKeyAction
 class SettingsView(
     context: Context,
     private val settingsManager: SettingsManager,
-    private val onClose: () -> Unit
+    private val onClose: () -> Unit,
+    private val onPickExportFolder: (() -> Unit)? = null
 ) : FrameLayout(context) {
 
     private val density = context.resources.displayMetrics.density
+    private var tvExportPath: TextView? = null
+    private var btnResetStorage: TextView? = null
 
     init {
         isClickable = true
@@ -567,8 +571,18 @@ class SettingsView(
             layoutParams = lp
         }
 
+        val storageRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
         val storageCol = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f)
         }
 
         val tvStorageLoc = TextView(context).apply {
@@ -579,15 +593,75 @@ class SettingsView(
         }
         storageCol.addView(tvStorageLoc)
 
-        val tvPath = TextView(context).apply {
-            text = "/Downloads/ClickEm/ (Public Device Storage)"
+        tvExportPath = TextView(context).apply {
+            text = settingsManager.exportFolderPath
             textSize = 11f
             setTextColor(Color.parseColor("#CBD5E1"))
             setPadding(0, (2 * density).toInt(), 0, 0)
         }
-        storageCol.addView(tvPath)
+        storageCol.addView(tvExportPath)
+        storageRow.addView(storageCol)
 
-        cardStorage.addView(storageCol)
+        val btnActionsLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        btnResetStorage = TextView(context).apply {
+            text = "Reset"
+            textSize = 11f
+            setTextColor(Color.parseColor("#94A3B8"))
+            paint.isFakeBoldText = true
+            setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+            visibility = if (settingsManager.exportFolderUri != null) View.VISIBLE else View.GONE
+            val bg = GradientDrawable().apply {
+                cornerRadius = 12 * density
+                setColor(Color.parseColor("#18202C"))
+                setStroke((1 * density).toInt(), Color.parseColor("#2D3B4E"))
+            }
+            background = bg
+            setOnClickListener {
+                settingsManager.resetExportFolder()
+                tvExportPath?.text = settingsManager.exportFolderPath
+                visibility = View.GONE
+                Toast.makeText(context, "Export destination reset to default", Toast.LENGTH_SHORT).show()
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                marginEnd = (6 * density).toInt()
+            }
+            layoutParams = lp
+        }
+        btnActionsLayout.addView(btnResetStorage)
+
+        val btnBrowseStorage = TextView(context).apply {
+            text = "Browse"
+            textSize = 11f
+            setTextColor(Color.parseColor("#FFFFFF"))
+            paint.isFakeBoldText = true
+            val hPad = (12 * density).toInt()
+            val vPad = (6 * density).toInt()
+            setPadding(hPad, vPad, hPad, vPad)
+            val bg = GradientDrawable().apply {
+                cornerRadius = 12 * density
+                setColor(Color.parseColor("#1E293B"))
+                setStroke((1 * density).toInt(), Color.parseColor("#334155"))
+            }
+            background = bg
+            contentDescription = "Browse and select export folder"
+            setOnClickListener {
+                onPickExportFolder?.invoke()
+            }
+        }
+        btnActionsLayout.addView(btnBrowseStorage)
+
+        storageRow.addView(btnActionsLayout)
+        cardStorage.addView(storageRow)
+        cardStorage.setOnClickListener {
+            onPickExportFolder?.invoke()
+        }
         contentLayout.addView(cardStorage)
 
         // Section Title: Updates & About
@@ -783,5 +857,10 @@ class SettingsView(
             addView(tvT)
             addView(tvSub)
         }
+    }
+
+    fun updateExportLocation(displayPath: String) {
+        tvExportPath?.text = displayPath
+        btnResetStorage?.visibility = if (settingsManager.exportFolderUri != null) View.VISIBLE else View.GONE
     }
 }

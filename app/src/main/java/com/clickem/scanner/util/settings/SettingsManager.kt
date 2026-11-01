@@ -74,6 +74,21 @@ class SettingsManager(private val context: Context) {
         }
         set(value) = prefs.edit().putString(KEY_EXPORT_QUALITY, value.name).apply()
 
+    var exportFolderUri: String?
+        get() = prefs.getString(KEY_EXPORT_FOLDER_URI, null)
+        set(value) = prefs.edit().putString(KEY_EXPORT_FOLDER_URI, value).apply()
+
+    var exportFolderPath: String
+        get() = prefs.getString(KEY_EXPORT_FOLDER_PATH, "/Downloads/ClickEm/") ?: "/Downloads/ClickEm/"
+        set(value) = prefs.edit().putString(KEY_EXPORT_FOLDER_PATH, value).apply()
+
+    fun resetExportFolder() {
+        prefs.edit()
+            .remove(KEY_EXPORT_FOLDER_URI)
+            .remove(KEY_EXPORT_FOLDER_PATH)
+            .apply()
+    }
+
     /**
      * Multi-level hardware check verified for Tecno Pova, Infinix, MediaTek, and Samsung/Pixel devices:
      * Checks PackageManager feature flags, AndroidX BiometricManager, and FingerprintManagerCompat.
@@ -104,5 +119,7 @@ class SettingsManager(private val context: Context) {
         private const val KEY_FINGERPRINT_SHUTTER = "pref_fingerprint_shutter"
         private const val KEY_DEFAULT_FILTER = "pref_default_filter"
         private const val KEY_EXPORT_QUALITY = "pref_export_quality"
+        private const val KEY_EXPORT_FOLDER_URI = "pref_export_folder_uri"
+        private const val KEY_EXPORT_FOLDER_PATH = "pref_export_folder_path"
     }
 }

@@ -17,6 +17,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -79,6 +80,44 @@ class MainActivity : AppCompatActivity() {
             setupDefaultCameraScreen()
         } else {
             showPermissionDeniedFallback()
+        }
+    }
+
+    private var currentSettingsView: SettingsView? = null
+
+    // Storage Access Framework folder picker launcher
+    private val folderPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            try {
+                contentResolver.takePersistableUriPermission(uri, takeFlags)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            val displayPath = formatTreeUriDisplayPath(uri)
+            settingsManager.exportFolderUri = uri.toString()
+            settingsManager.exportFolderPath = displayPath
+            currentSettingsView?.updateExportLocation(displayPath)
+            Toast.makeText(this, "Export location set to: $displayPath", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun formatTreeUriDisplayPath(uri: Uri): String {
+        return try {
+            val docId = DocumentsContract.getTreeDocumentId(uri)
+            if (docId.startsWith("primary:")) {
+                val sub = docId.removePrefix("primary:")
+                if (sub.isEmpty()) "/Internal Storage/" else "/$sub/"
+            } else if (docId.contains(":")) {
+                val parts = docId.split(":")
+                if (parts.size == 2) "/${parts[1]}/" else uri.path ?: "/Downloads/ClickEm/"
+            } else {
+                uri.path ?: "/Downloads/ClickEm/"
+            }
+        } catch (_: Exception) {
+            "/Downloads/ClickEm/"
         }
     }
 
@@ -596,10 +635,16 @@ class MainActivity : AppCompatActivity() {
             context = this,
             settingsManager = settingsManager,
             onClose = {
+                currentSettingsView = null
                 cameraView?.setAspectRatio(settingsManager.cameraAspectRatio)
                 popOverlay()
+            },
+            onPickExportFolder = {
+                val initialUri = settingsManager.exportFolderUri?.let { Uri.parse(it) }
+                folderPickerLauncher.launch(initialUri)
             }
         )
+        currentSettingsView = settingsView
         pushOverlay(settingsView)
     }
 
@@ -640,6 +685,9 @@ class MainActivity : AppCompatActivity() {
         if (overlayBackStack.isEmpty()) return false
 
         val topView = overlayBackStack.pop()
+        if (topView is SettingsView) {
+            currentSettingsView = null
+        }
         topView.animate()
             .alpha(0f)
             .translationY(40f)

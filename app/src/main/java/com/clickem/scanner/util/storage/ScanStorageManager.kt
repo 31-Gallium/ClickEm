@@ -9,10 +9,12 @@ import android.graphics.PointF
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import com.clickem.scanner.model.DocumentProject
 import com.clickem.scanner.model.FilterMode
 import com.clickem.scanner.model.ScannedPage
+import com.clickem.scanner.util.settings.SettingsManager
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -251,10 +253,32 @@ class ScanStorageManager(private val context: Context) {
     }
 
     /**
-     * Copies an exported file to public Downloads or Documents via MediaStore so it is accessible in file managers.
+     * Copies an exported file to public Downloads or custom user-selected folder via SAF/MediaStore
+     * so it is accessible in device file managers.
      */
     fun exportToPublicStorage(file: File, mimeType: String, displayName: String): Uri? {
         if (!file.exists()) return null
+
+        val settingsManager = SettingsManager(context)
+        val customUriStr = settingsManager.exportFolderUri
+        if (!customUriStr.isNullOrEmpty()) {
+            try {
+                val treeUri = Uri.parse(customUriStr)
+                val parentDocId = DocumentsContract.getTreeDocumentId(treeUri)
+                val parentDocUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocId)
+                val docUri = DocumentsContract.createDocument(context.contentResolver, parentDocUri, mimeType, displayName)
+                if (docUri != null) {
+                    context.contentResolver.openOutputStream(docUri)?.use { out ->
+                        FileInputStream(file).use { input ->
+                            input.copyTo(out)
+                        }
+                    }
+                    return docUri
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
 
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
