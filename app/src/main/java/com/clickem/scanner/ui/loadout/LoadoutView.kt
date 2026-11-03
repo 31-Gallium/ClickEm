@@ -17,6 +17,7 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.util.LruCache
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -40,6 +41,8 @@ import com.clickem.scanner.util.export.ElongatedImageStitcher
 import com.clickem.scanner.util.export.PdfGenerator
 import com.clickem.scanner.util.export.ShareHelper
 import com.clickem.scanner.util.storage.ScanStorageManager
+import com.clickem.scanner.util.BackPressHandler
+import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -57,7 +60,7 @@ class LoadoutView(
     private val onOpenProject: (DocumentProject) -> Unit,
     private val onOpenProjectAtPage: ((DocumentProject, Int) -> Unit)? = null,
     private val onReturnToCamera: () -> Unit
-) : FrameLayout(context) {
+) : FrameLayout(context), BackPressHandler {
 
     data class GalleryPhotoItem(
         val project: DocumentProject,
@@ -70,7 +73,7 @@ class LoadoutView(
 
     private val gridBackground: GridBackgroundView
     private lateinit var adapter: LoadoutAdapter
-    private val galleryAdapter: ScannedGalleryAdapter
+    private lateinit var galleryAdapter: ScannedGalleryAdapter
     private val galleryThumbCache = LruCache<String, Bitmap>(60)
     private val allProjects = mutableListOf<DocumentProject>()
     private val displayedProjects = mutableListOf<DocumentProject>()
@@ -83,10 +86,23 @@ class LoadoutView(
 
     private val tvHeaderTitle: TextView
     private val tvHeaderSubtitle: TextView
+    private val btnBack: ImageView
     private val rvProjects: RecyclerView
     private val rvGalleryGrid: RecyclerView
     private val progressBar: ProgressBar
     private val tvEmptyState: TextView
+
+    private val navPill: NavPillView
+    private val gallerySelectionDock: LinearLayout
+
+    private val galleryDetailOverlay: FrameLayout
+    private val detailViewPager: ViewPager2
+    private val tvDetailTitle: TextView
+    private val tvDetailSubtitle: TextView
+    private val detailTopBar: LinearLayout
+    private val detailBottomBar: FrameLayout
+    private val isLandscapeCache = mutableMapOf<String, Boolean>()
+    private var gallerySpanSizes = IntArray(0)
 
     init {
         isClickable = true
@@ -133,16 +149,21 @@ class LoadoutView(
         galleryAdapter = ScannedGalleryAdapter(
             items = displayedGalleryPhotos,
             onPhotoClick = { item ->
-                if (onOpenProjectAtPage != null) {
-                    onOpenProjectAtPage.invoke(item.project, item.pageIndex)
-                } else {
-                    onOpenProject(item.project)
+                val idx = displayedGalleryPhotos.indexOf(item)
+                if (idx != -1) {
+                    openGalleryDetail(idx)
                 }
             },
             onPhotoLongClick = { item ->
-                showSinglePageShareDialog(item.project, item.page, item.pageIndex)
+                if (!galleryAdapter.isSelectionMode()) {
+                    galleryAdapter.toggleSelection(item)
+                    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                }
             }
         )
+        galleryAdapter.onSelectionChanged = {
+            updateGallerySelectionUi()
+        }
 
         val initialSafeTop = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
         val initialSafeBottom = com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context)
@@ -152,7 +173,7 @@ class LoadoutView(
         val contentLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            setPadding(0, initialSafeTop + (12 * density).toInt(), 0, baseContentBottom + initialSafeBottom)
+            setPadding(0, initialSafeTop + (12 * density).toInt(), 0, 0)
         }
 
         // 2. Top Header
@@ -167,7 +188,7 @@ class LoadoutView(
             )
         }
 
-        val btnBack = ImageView(context).apply {
+        btnBack = ImageView(context).apply {
             setImageResource(R.drawable.ic_back)
             contentDescription = "Return to camera"
             val sz = (48 * density).toInt()
@@ -214,7 +235,7 @@ class LoadoutView(
         val searchBox = FrameLayout(context).apply {
             val bg = GradientDrawable().apply {
                 cornerRadius = 22f * density
-                setColor(Color.parseColor("#12151D"))
+                setColor(Color.parseColor("#000000"))
                 setStroke((1 * density).toInt(), Color.parseColor("#30FFFFFF"))
             }
             background = bg
@@ -309,15 +330,23 @@ class LoadoutView(
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             layoutManager = LinearLayoutManager(context)
             adapter = this@LoadoutView.adapter
+            clipToPadding = false
+            setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), baseContentBottom + initialSafeBottom)
         }
         listContainer.addView(rvProjects)
 
         rvGalleryGrid = RecyclerView(context).apply {
-            val pad = (10 * density).toInt()
-            setPadding(pad, (2 * density).toInt(), pad, pad)
+            val pad = (1 * density).toInt()
+            setPadding(pad, (8 * density).toInt(), pad, baseContentBottom + initialSafeBottom)
             clipToPadding = false
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            layoutManager = GridLayoutManager(context, 3)
+            val gridLM = GridLayoutManager(context, 3)
+            gridLM.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    return gallerySpanSizes.getOrElse(position) { 1 }
+                }
+            }
+            layoutManager = gridLM
             adapter = this@LoadoutView.galleryAdapter
             visibility = View.GONE
         }
@@ -334,12 +363,44 @@ class LoadoutView(
             visibility = View.GONE
         }
         listContainer.addView(tvEmptyState)
+
+        val topFadeView = View(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                (26 * density).toInt()
+            ).apply {
+                gravity = Gravity.TOP
+            }
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.parseColor("#F2000000"), Color.parseColor("#99000000"), Color.TRANSPARENT)
+            )
+            isClickable = false
+            isFocusable = false
+        }
+        listContainer.addView(topFadeView)
+
+        val bottomFadeView = View(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                (110 * density).toInt() + initialSafeBottom
+            ).apply {
+                gravity = Gravity.BOTTOM
+            }
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.TRANSPARENT, Color.parseColor("#99000000"), Color.parseColor("#F2000000"))
+            )
+            isClickable = false
+            isFocusable = false
+        }
+        listContainer.addView(bottomFadeView)
         contentLayout.addView(listContainer)
 
         addView(contentLayout)
 
         // 6. Floating Bottom Nav Pill: [0: Loadout Archive] [1: Camera] [2: Google Photos Grid Gallery]
-        val navPill = NavPillView(context).apply {
+        navPill = NavPillView(context).apply {
             layoutParams = LayoutParams(
                 (resources.displayMetrics.widthPixels * 0.88).toInt(),
                 LayoutParams.WRAP_CONTENT
@@ -358,6 +419,376 @@ class LoadoutView(
         }
         addView(navPill)
 
+        // 7. Floating Gallery Selection Dock (2-button dock: Share & Delete)
+        gallerySelectionDock = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val hPad = (16 * density).toInt()
+            val vPad = (10 * density).toInt()
+            setPadding(hPad, vPad, hPad, vPad)
+            background = GradientDrawable().apply {
+                cornerRadius = 24f * density
+                setColor(Color.parseColor("#F2000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#38FFFFFF"))
+            }
+            elevation = 16f * density
+            layoutParams = LayoutParams(
+                (resources.displayMetrics.widthPixels * 0.88).toInt(),
+                LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                setMargins(0, 0, 0, baseNavMargin + initialSafeBottom)
+            }
+            visibility = View.GONE
+
+            // Share button
+            val btnShare = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                val p = (8 * density).toInt()
+                setPadding(p, p, p, p)
+                background = GradientDrawable().apply {
+                    cornerRadius = 16f * density
+                    setColor(Color.TRANSPARENT)
+                }
+
+                val icon = ImageView(context).apply {
+                    setImageResource(R.drawable.ic_share)
+                    setColorFilter(Color.WHITE)
+                    val sz = (20 * density).toInt()
+                    layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
+                        marginEnd = (8 * density).toInt()
+                    }
+                }
+                addView(icon)
+
+                val label = TextView(context).apply {
+                    text = "Share"
+                    textSize = 13.5f
+                    setTextColor(Color.WHITE)
+                    paint.isFakeBoldText = true
+                }
+                addView(label)
+
+                setOnClickListener {
+                    if (galleryAdapter.selectedItems.isEmpty()) return@setOnClickListener
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    val sortedSelected = galleryAdapter.selectedItems.sortedWith(
+                        compareBy({ it.project.createdAt }, { it.pageIndex })
+                    )
+                    if (sortedSelected.size == 1) {
+                        val single = sortedSelected.first()
+                        showSinglePageShareDialog(single.project, single.page, single.pageIndex)
+                    } else {
+                        val tempProj = DocumentProject(
+                            id = "gallery_selection_export",
+                            title = "ClickEm_Scans",
+                            pages = ArrayList(sortedSelected.map { it.page })
+                        )
+                        showShareFormatModalSheet(tempProj)
+                    }
+                }
+            }
+            addView(btnShare)
+
+            // Divider line
+            val divider = View(context).apply {
+                val w = (1 * density).toInt()
+                val h = (24 * density).toInt()
+                layoutParams = LinearLayout.LayoutParams(w, h).apply {
+                    setMargins((8 * density).toInt(), 0, (8 * density).toInt(), 0)
+                }
+                setBackgroundColor(Color.parseColor("#25FFFFFF"))
+            }
+            addView(divider)
+
+            // Delete button
+            val btnDelete = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                val p = (8 * density).toInt()
+                setPadding(p, p, p, p)
+                background = GradientDrawable().apply {
+                    cornerRadius = 16f * density
+                    setColor(Color.TRANSPARENT)
+                }
+
+                val icon = ImageView(context).apply {
+                    setImageResource(R.drawable.ic_delete)
+                    setColorFilter(Color.parseColor("#F43F5E"))
+                    val sz = (20 * density).toInt()
+                    layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
+                        marginEnd = (8 * density).toInt()
+                    }
+                }
+                addView(icon)
+
+                val label = TextView(context).apply {
+                    text = "Delete"
+                    textSize = 13.5f
+                    setTextColor(Color.parseColor("#F43F5E"))
+                    paint.isFakeBoldText = true
+                }
+                addView(label)
+
+                setOnClickListener {
+                    if (galleryAdapter.selectedItems.isEmpty()) return@setOnClickListener
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    val count = galleryAdapter.selectedItems.size
+                    AlertDialog.Builder(context)
+                        .setTitle("Delete $count Selected Photo${if (count > 1) "s" else ""}?")
+                        .setMessage("Are you sure you want to delete these photos? If all photos from a session are deleted, the entire session will be deleted.")
+                        .setPositiveButton("Delete") { _, _ ->
+                            val selectedList = ArrayList(galleryAdapter.selectedItems)
+                            val byProject = selectedList.groupBy { it.project }
+                            for ((proj, items) in byProject) {
+                                val pageIdsToRemove = items.map { it.page.id }.toSet()
+                                val remaining = proj.pages.filter { it.id !in pageIdsToRemove }
+                                for (item in items) {
+                                    try { File(item.page.originalImagePath).delete() } catch (_: Exception) {}
+                                    try { File(item.page.thumbnailPath).delete() } catch (_: Exception) {}
+                                    try { galleryThumbCache.remove("${item.page.thumbnailPath}_${File(item.page.thumbnailPath).lastModified()}") } catch (_: Exception) {}
+                                }
+                                if (remaining.isEmpty()) {
+                                    storageManager.deleteProject(proj.id)
+                                } else {
+                                    proj.pages = ArrayList(remaining)
+                                    proj.updatedAt = System.currentTimeMillis()
+                                    storageManager.saveProject(proj)
+                                }
+                            }
+                            galleryAdapter.clearSelection()
+                            loadProjectsFromStorage()
+                            Toast.makeText(context, "Deleted $count photo${if (count > 1) "s" else ""}", Toast.LENGTH_SHORT).show()
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+            addView(btnDelete)
+        }
+        addView(gallerySelectionDock)
+
+        // 4. Fullscreen Gallery Detail Overlay (Requirement 5)
+        galleryDetailOverlay = FrameLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            setBackgroundColor(Color.BLACK)
+            isClickable = true
+            isFocusable = true
+            visibility = View.GONE
+        }
+
+        detailViewPager = ViewPager2(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            orientation = ViewPager2.ORIENTATION_HORIZONTAL
+        }
+        galleryDetailOverlay.addView(detailViewPager)
+
+        // Top Bar
+        detailTopBar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val p = (16 * density).toInt()
+            setPadding(p, initialSafeTop + (8 * density).toInt(), p, (8 * density).toInt())
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.TOP
+            }
+            background = GradientDrawable().apply {
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                colors = intArrayOf(Color.parseColor("#CC000000"), Color.TRANSPARENT)
+            }
+        }
+
+        val btnDetailBack = ImageView(context).apply {
+            setImageResource(R.drawable.ic_back)
+            contentDescription = "Close photo viewer"
+            val sz = (40 * density).toInt()
+            val p = (8 * density).toInt()
+            setPadding(p, p, p, p)
+            setColorFilter(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#33000000"))
+                setStroke((1 * density).toInt(), Color.parseColor("#25FFFFFF"))
+            }
+            layoutParams = LinearLayout.LayoutParams(sz, sz)
+            setOnClickListener { closeGalleryDetail() }
+        }
+        detailTopBar.addView(btnDetailBack)
+
+        val detailTitleWrap = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (12 * density).toInt()
+            }
+        }
+
+        tvDetailTitle = TextView(context).apply {
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            paint.isFakeBoldText = true
+        }
+        detailTitleWrap.addView(tvDetailTitle)
+
+        tvDetailSubtitle = TextView(context).apply {
+            textSize = 11f
+            setTextColor(Color.parseColor("#8C96A5"))
+        }
+        detailTitleWrap.addView(tvDetailSubtitle)
+        detailTopBar.addView(detailTitleWrap)
+
+        detailViewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                if (position in displayedGalleryPhotos.indices) {
+                    val item = displayedGalleryPhotos[position]
+                    tvDetailTitle.text = "IMAGE ${position + 1} OF ${displayedGalleryPhotos.size}"
+                    val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                    tvDetailSubtitle.text = "${item.project.title} • Page ${item.pageIndex + 1} • ${dateFmt.format(Date(item.project.createdAt))}"
+                }
+            }
+        })
+
+        val btnDetailShare = ImageView(context).apply {
+            setImageResource(R.drawable.ic_share)
+            contentDescription = "Share photo"
+            val sz = (40 * density).toInt()
+            val p = (9 * density).toInt()
+            setPadding(p, p, p, p)
+            setColorFilter(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#33000000"))
+                setStroke((1 * density).toInt(), Color.parseColor("#25FFFFFF"))
+            }
+            layoutParams = LinearLayout.LayoutParams(sz, sz)
+            setOnClickListener {
+                val pos = detailViewPager.currentItem
+                if (pos in displayedGalleryPhotos.indices) {
+                    val item = displayedGalleryPhotos[pos]
+                    showSinglePageShareDialog(item.project, item.page, item.pageIndex)
+                }
+            }
+        }
+        detailTopBar.addView(btnDetailShare)
+
+        val btnDetailDelete = ImageView(context).apply {
+            setImageResource(R.drawable.ic_delete)
+            contentDescription = "Delete photo"
+            val sz = (40 * density).toInt()
+            val p = (9 * density).toInt()
+            setPadding(p, p, p, p)
+            setColorFilter(Color.parseColor("#F43F5E"))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#33000000"))
+                setStroke((1 * density).toInt(), Color.parseColor("#25FFFFFF"))
+            }
+            layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
+                marginStart = (10 * density).toInt()
+            }
+            setOnClickListener {
+                val pos = detailViewPager.currentItem
+                if (pos in displayedGalleryPhotos.indices) {
+                    val item = displayedGalleryPhotos[pos]
+                    AlertDialog.Builder(context)
+                        .setTitle("Delete Photo?")
+                        .setMessage("Are you sure you want to delete this photo? If this is the only photo in the session, the session will be deleted.")
+                        .setPositiveButton("Delete") { _, _ ->
+                            val proj = item.project
+                            val pageIdx = item.pageIndex
+                            try { File(item.page.originalImagePath).delete() } catch (_: Exception) {}
+                            try { File(item.page.thumbnailPath).delete() } catch (_: Exception) {}
+                            try { galleryThumbCache.remove("${item.page.thumbnailPath}_${File(item.page.thumbnailPath).lastModified()}") } catch (_: Exception) {}
+                            if (pageIdx in proj.pages.indices) {
+                                proj.pages.removeAt(pageIdx)
+                                if (proj.pages.isEmpty()) {
+                                    storageManager.deleteProject(proj.id)
+                                } else {
+                                    proj.updatedAt = System.currentTimeMillis()
+                                    storageManager.saveProject(proj)
+                                }
+                            }
+                            loadProjectsFromStorage()
+                            Toast.makeText(context, "Deleted photo", Toast.LENGTH_SHORT).show()
+                            if (displayedGalleryPhotos.isEmpty()) {
+                                closeGalleryDetail()
+                            } else {
+                                val nextPos = pos.coerceAtMost(displayedGalleryPhotos.size - 1)
+                                detailViewPager.adapter = GalleryDetailPagerAdapter(displayedGalleryPhotos)
+                                detailViewPager.setCurrentItem(nextPos, false)
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+        }
+        detailTopBar.addView(btnDetailDelete)
+        galleryDetailOverlay.addView(detailTopBar)
+
+        // Bottom Bar with "Open Document Session" floating pill
+        detailBottomBar = FrameLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                setMargins(0, 0, 0, baseNavMargin + initialSafeBottom)
+            }
+        }
+
+        val btnDetailOpenSession = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            val hP = (22 * density).toInt()
+            val vP = (12 * density).toInt()
+            setPadding(hP, vP, hP, vP)
+            background = GradientDrawable().apply {
+                cornerRadius = 24f * density
+                setColor(Color.WHITE)
+                setStroke((1 * density).toInt(), Color.parseColor("#40FFFFFF"))
+            }
+            elevation = 8f * density
+            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+            }
+
+            val icon = ImageView(context).apply {
+                setImageResource(R.drawable.ic_loadout)
+                val sz = (18 * density).toInt()
+                layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
+                    marginEnd = (8 * density).toInt()
+                }
+                setColorFilter(Color.BLACK)
+            }
+            addView(icon)
+
+            val text = TextView(context).apply {
+                text = "Open Document Session"
+                textSize = 13.5f
+                setTextColor(Color.BLACK)
+                paint.isFakeBoldText = true
+            }
+            addView(text)
+
+            setOnClickListener {
+                val pos = detailViewPager.currentItem
+                if (pos in displayedGalleryPhotos.indices) {
+                    val item = displayedGalleryPhotos[pos]
+                    closeGalleryDetail()
+                    if (onOpenProjectAtPage != null) {
+                        onOpenProjectAtPage.invoke(item.project, item.pageIndex)
+                    } else {
+                        onOpenProject(item.project)
+                    }
+                }
+            }
+        }
+        detailBottomBar.addView(btnDetailOpenSession)
+        galleryDetailOverlay.addView(detailBottomBar)
+
+        addView(galleryDetailOverlay)
+
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
             val statusBarInsets = insets.getInsets(
                 androidx.core.view.WindowInsetsCompat.Type.statusBars() or
@@ -370,10 +801,26 @@ class LoadoutView(
             val safeMin = com.clickem.scanner.util.UiInsetsUtil.getSafeTopInset(context)
             val topInset = maxOf(statusBarInsets.top, safeMin)
             val safeBottom = maxOf(navInsets.bottom, com.clickem.scanner.util.UiInsetsUtil.getSafeBottomInset(context))
-            contentLayout.setPadding(0, topInset + (12 * density).toInt(), 0, baseContentBottom + safeBottom)
+            contentLayout.setPadding(0, topInset + (12 * density).toInt(), 0, 0)
+            bottomFadeView.layoutParams.height = (110 * density).toInt() + safeBottom
+            bottomFadeView.requestLayout()
+            rvProjects.setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), baseContentBottom + safeBottom)
+            val pad = (1 * density).toInt()
+            rvGalleryGrid.setPadding(pad, (8 * density).toInt(), pad, baseContentBottom + safeBottom)
             (navPill.layoutParams as? LayoutParams)?.let { lp ->
                 lp.bottomMargin = baseNavMargin + safeBottom
                 navPill.layoutParams = lp
+            }
+            (gallerySelectionDock.layoutParams as? LayoutParams)?.let { lp ->
+                lp.bottomMargin = baseNavMargin + safeBottom
+                gallerySelectionDock.layoutParams = lp
+            }
+            (detailTopBar.layoutParams as? LayoutParams)?.let {
+                detailTopBar.setPadding((16 * density).toInt(), topInset + (8 * density).toInt(), (16 * density).toInt(), (8 * density).toInt())
+            }
+            (detailBottomBar.layoutParams as? LayoutParams)?.let { lp ->
+                lp.bottomMargin = baseNavMargin + safeBottom
+                detailBottomBar.layoutParams = lp
             }
             insets
         }
@@ -390,6 +837,9 @@ class LoadoutView(
     }
 
     private fun switchDisplayMode(galleryMode: Boolean) {
+        if (galleryAdapter.isSelectionMode()) {
+            galleryAdapter.clearSelection()
+        }
         isGalleryMode = galleryMode
         if (galleryMode) {
             tvHeaderTitle.text = "SCANNED GALLERY"
@@ -414,7 +864,7 @@ class LoadoutView(
             val isSelected = (cat == activeFilter)
             val bg = GradientDrawable().apply {
                 cornerRadius = 16f * density
-                setColor(if (isSelected) Color.parseColor("#FFFFFF") else Color.parseColor("#12151D"))
+                setColor(if (isSelected) Color.parseColor("#FFFFFF") else Color.parseColor("#000000"))
                 setStroke((1 * density).toInt(), Color.parseColor(if (isSelected) "#FFFFFF" else "#30FFFFFF"))
             }
             chip.background = bg
@@ -447,6 +897,39 @@ class LoadoutView(
         updateEmptyState()
     }
 
+    private fun isItemLandscape(item: GalleryPhotoItem): Boolean {
+        val path = item.page.thumbnailPath
+        return isLandscapeCache.getOrPut(path) {
+            try {
+                val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(path, opts)
+                val isRotated = (item.page.rotationDegrees % 180 != 0)
+                val w = if (isRotated) opts.outHeight else opts.outWidth
+                val h = if (isRotated) opts.outWidth else opts.outHeight
+                w > (h * 1.18f)
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
+    private fun updateGallerySpanSizes() {
+        val spanSizes = IntArray(displayedGalleryPhotos.size) { 1 }
+        var col = 0
+        for (i in displayedGalleryPhotos.indices) {
+            val item = displayedGalleryPhotos[i]
+            val isLandscape = isItemLandscape(item)
+            if (isLandscape && (col == 0 || col == 1)) {
+                spanSizes[i] = 2
+                col = (col + 2) % 3
+            } else {
+                spanSizes[i] = 1
+                col = (col + 1) % 3
+            }
+        }
+        gallerySpanSizes = spanSizes
+    }
+
     private fun rebuildGalleryItems() {
         displayedGalleryPhotos.clear()
         for (proj in displayedProjects) {
@@ -454,10 +937,74 @@ class LoadoutView(
                 displayedGalleryPhotos.add(GalleryPhotoItem(proj, proj.pages[i], i))
             }
         }
+        updateGallerySpanSizes()
         galleryAdapter.notifyDataSetChanged()
         if (isGalleryMode) {
             val count = displayedGalleryPhotos.size
             tvHeaderSubtitle.text = "$count scanned ${if (count == 1) "image" else "images"} • Grid view"
+        }
+    }
+
+    fun openGalleryDetail(position: Int) {
+        if (displayedGalleryPhotos.isEmpty() || position !in displayedGalleryPhotos.indices) return
+        detailViewPager.adapter = GalleryDetailPagerAdapter(displayedGalleryPhotos)
+        detailViewPager.setCurrentItem(position, false)
+        val item = displayedGalleryPhotos[position]
+        tvDetailTitle.text = "IMAGE ${position + 1} OF ${displayedGalleryPhotos.size}"
+        val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        tvDetailSubtitle.text = "${item.project.title} • Page ${item.pageIndex + 1} • ${dateFmt.format(Date(item.project.createdAt))}"
+        galleryDetailOverlay.alpha = 0f
+        galleryDetailOverlay.visibility = View.VISIBLE
+        galleryDetailOverlay.animate().alpha(1f).setDuration(180).start()
+    }
+
+    fun closeGalleryDetail() {
+        if (galleryDetailOverlay.visibility != View.VISIBLE) return
+        galleryDetailOverlay.animate().alpha(0f).setDuration(150).withEndAction {
+            galleryDetailOverlay.visibility = View.GONE
+        }.start()
+    }
+
+    override fun handleBackPressed(): Boolean {
+        if (galleryDetailOverlay.visibility == View.VISIBLE) {
+            closeGalleryDetail()
+            return true
+        }
+        if (isGalleryMode && galleryAdapter.isSelectionMode()) {
+            galleryAdapter.clearSelection()
+            return true
+        }
+        return false
+    }
+
+    private fun updateGallerySelectionUi() {
+        val count = galleryAdapter.selectedItems.size
+        if (count > 0) {
+            btnBack.setImageResource(R.drawable.ic_close)
+            btnBack.contentDescription = "Cancel gallery selection"
+            btnBack.setOnClickListener {
+                galleryAdapter.clearSelection()
+            }
+            tvHeaderTitle.text = "$count SELECTED"
+            tvHeaderSubtitle.text = "Select photos to share or delete"
+            navPill.visibility = View.GONE
+            gallerySelectionDock.visibility = View.VISIBLE
+        } else {
+            btnBack.setImageResource(R.drawable.ic_back)
+            btnBack.contentDescription = "Return to camera"
+            btnBack.setOnClickListener {
+                onReturnToCamera()
+            }
+            if (isGalleryMode) {
+                tvHeaderTitle.text = "SCANNED GALLERY"
+                val total = displayedGalleryPhotos.size
+                tvHeaderSubtitle.text = "$total scanned ${if (total == 1) "image" else "images"} • Grid view"
+            } else {
+                tvHeaderTitle.text = "LOADOUT ARCHIVE"
+                tvHeaderSubtitle.text = "Saved scan sessions & bundles"
+            }
+            navPill.visibility = View.VISIBLE
+            gallerySelectionDock.visibility = View.GONE
         }
     }
 
@@ -759,7 +1306,7 @@ class LoadoutView(
         titleCol.addView(tvTitle)
 
         val tvSub = TextView(context).apply {
-            text = "Page ${pageIdx + 1} of ${proj.pages.size} • Action Options"
+            text = "Page ${pageIdx + 1} of ${proj.pages.size} • Share Format"
             textSize = 11f
             setTextColor(Color.parseColor("#8C96A5"))
         }
@@ -857,38 +1404,6 @@ class LoadoutView(
             R.drawable.ic_gallery
         ) {
             shareSinglePageImage(page, "${proj.title}_Page_${pageIdx + 1}")
-        })
-
-        // 3. Edit Page (ic_edit)
-        container.addView(createActionRow(
-            "Edit Page in Scanner",
-            "Fine-tune crop quad, rotation, or filter preset",
-            R.drawable.ic_edit
-        ) {
-            if (onOpenProjectAtPage != null) {
-                onOpenProjectAtPage.invoke(proj, pageIdx)
-            } else {
-                onOpenProject(proj)
-            }
-        })
-
-        // 4. Delete Page (ic_delete)
-        container.addView(createActionRow(
-            "Delete Scanned Page",
-            "Remove page ${pageIdx + 1} from ${proj.title}",
-            R.drawable.ic_delete
-        ) {
-            if (pageIdx in proj.pages.indices) {
-                proj.pages.removeAt(pageIdx)
-                if (proj.pages.isEmpty()) {
-                    storageManager.deleteProject(proj.id)
-                } else {
-                    proj.updatedAt = System.currentTimeMillis()
-                    storageManager.saveProject(proj)
-                }
-                loadProjectsFromStorage()
-                Toast.makeText(context, "Deleted page ${pageIdx + 1}", Toast.LENGTH_SHORT).show()
-            }
         })
 
         dialog = AlertDialog.Builder(context)
@@ -1289,28 +1804,60 @@ class LoadoutView(
         private val onPhotoLongClick: (GalleryPhotoItem) -> Unit
     ) : RecyclerView.Adapter<ScannedGalleryAdapter.PhotoViewHolder>() {
 
+        val selectedItems = mutableSetOf<GalleryPhotoItem>()
+        var onSelectionChanged: ((Int) -> Unit)? = null
+
+        fun isSelectionMode(): Boolean = selectedItems.isNotEmpty()
+
+        fun toggleSelection(item: GalleryPhotoItem) {
+            val wasMode = isSelectionMode()
+            if (selectedItems.contains(item)) {
+                selectedItems.remove(item)
+            } else {
+                selectedItems.add(item)
+            }
+            val isNowMode = isSelectionMode()
+            if (wasMode != isNowMode) {
+                notifyDataSetChanged()
+            } else {
+                val idx = items.indexOf(item)
+                if (idx != -1) {
+                    notifyItemChanged(idx)
+                } else {
+                    notifyDataSetChanged()
+                }
+            }
+            onSelectionChanged?.invoke(selectedItems.size)
+        }
+
+        fun clearSelection() {
+            selectedItems.clear()
+            notifyDataSetChanged()
+            onSelectionChanged?.invoke(0)
+        }
+
         inner class PhotoViewHolder(
             val tile: FrameLayout,
             val ivPhoto: ImageView,
             val tvLabel: TextView,
-            val tvDateBadge: TextView
+            val tvDateBadge: TextView,
+            val ivSelectionCheck: ImageView
         ) : RecyclerView.ViewHolder(tile)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoViewHolder {
-            val m = (4 * density).toInt()
-            val tileHeight = (138 * density).toInt()
+            val m = (1 * density).toInt()
+            val colW = context.resources.displayMetrics.widthPixels / 3
 
             val tile = FrameLayout(context).apply {
                 layoutParams = ViewGroup.MarginLayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    tileHeight
+                    colW
                 ).apply {
                     setMargins(m, m, m, m)
                 }
                 background = GradientDrawable().apply {
-                    cornerRadius = 10f * density
-                    setColor(Color.parseColor("#12151D"))
-                    setStroke((1 * density).toInt(), Color.parseColor("#25FFFFFF"))
+                    cornerRadius = 0f
+                    setColor(Color.BLACK)
                 }
                 clipToOutline = true
             }
@@ -1321,53 +1868,83 @@ class LoadoutView(
             }
             tile.addView(ivPhoto)
 
-            // Subtle top-right date pill
+            // Hidden when unopened (Requirement 5)
             val tvDateBadge = TextView(context).apply {
                 textSize = 8.5f
                 setTextColor(Color.parseColor("#E2E8F0"))
-                paint.isFakeBoldText = true
-                val hP = (6 * density).toInt()
-                val vP = (2 * density).toInt()
-                setPadding(hP, vP, hP, vP)
-                background = GradientDrawable().apply {
-                    cornerRadius = 6f * density
-                    setColor(Color.parseColor("#B3090B10"))
-                }
-                layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                    gravity = Gravity.TOP or Gravity.END
-                    val bM = (6 * density).toInt()
-                    setMargins(bM, bM, bM, bM)
-                }
+                visibility = View.GONE
             }
             tile.addView(tvDateBadge)
 
-            // Bottom caption overlay bar
             val tvLabel = TextView(context).apply {
                 textSize = 9.5f
                 setTextColor(Color.parseColor("#F8FAFC"))
-                paint.isFakeBoldText = true
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-                val hP = (6 * density).toInt()
-                val vP = (4 * density).toInt()
-                setPadding(hP, vP, hP, vP)
-                setBackgroundColor(Color.parseColor("#CC090B10"))
-                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-                    gravity = Gravity.BOTTOM
-                }
+                visibility = View.GONE
             }
             tile.addView(tvLabel)
 
-            return PhotoViewHolder(tile, ivPhoto, tvLabel, tvDateBadge)
+            val ivSelectionCheck = ImageView(context).apply {
+                val sz = (26 * density).toInt()
+                val bg = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.WHITE)
+                }
+                background = bg
+                val p = (5 * density).toInt()
+                setPadding(p, p, p, p)
+                setImageResource(R.drawable.ic_check)
+                setColorFilter(Color.BLACK)
+                layoutParams = FrameLayout.LayoutParams(sz, sz).apply {
+                    gravity = Gravity.TOP or Gravity.END
+                    val margin = (6 * density).toInt()
+                    setMargins(margin, margin, margin, margin)
+                }
+                visibility = View.GONE
+            }
+            tile.addView(ivSelectionCheck)
+
+            return PhotoViewHolder(tile, ivPhoto, tvLabel, tvDateBadge, ivSelectionCheck)
         }
 
         override fun onBindViewHolder(holder: PhotoViewHolder, position: Int) {
             val item = items[position]
-            val dateFmt = SimpleDateFormat("MMM d", Locale.getDefault())
+            val spanSize = if (position in gallerySpanSizes.indices) gallerySpanSizes[position] else 1
+            val colW = holder.tile.context.resources.displayMetrics.widthPixels / 3
+            val targetH = if (spanSize == 2) (colW * 1.0f).toInt() else colW
+            if (holder.tile.layoutParams.height != targetH) {
+                holder.tile.layoutParams.height = targetH
+            }
 
-            holder.tvLabel.text = "${item.project.title} • P${item.pageIndex + 1}"
-            holder.tvDateBadge.text = dateFmt.format(Date(item.project.createdAt))
             holder.tile.contentDescription = "${item.project.title}, Page ${item.pageIndex + 1} of ${item.project.pages.size}"
+
+            val isSelected = selectedItems.contains(item)
+            val inSelectionMode = isSelectionMode()
+            val tileBg = holder.tile.background as? GradientDrawable
+
+            if (isSelected) {
+                tileBg?.setStroke((2.5f * density).toInt(), Color.WHITE)
+                holder.ivSelectionCheck.visibility = View.VISIBLE
+                holder.ivSelectionCheck.isClickable = true
+                holder.ivSelectionCheck.setImageResource(R.drawable.ic_check)
+                holder.ivSelectionCheck.setColorFilter(Color.BLACK)
+                (holder.ivSelectionCheck.background as? GradientDrawable)?.apply {
+                    setColor(Color.WHITE)
+                    setStroke(0, Color.TRANSPARENT)
+                }
+            } else if (inSelectionMode) {
+                tileBg?.setStroke(0, Color.TRANSPARENT)
+                holder.ivSelectionCheck.visibility = View.VISIBLE
+                holder.ivSelectionCheck.isClickable = true
+                holder.ivSelectionCheck.setImageDrawable(null)
+                (holder.ivSelectionCheck.background as? GradientDrawable)?.apply {
+                    setColor(Color.TRANSPARENT)
+                    setStroke((1.5f * density).toInt(), Color.parseColor("#80FFFFFF"))
+                }
+            } else {
+                tileBg?.setStroke(0, Color.TRANSPARENT)
+                holder.ivSelectionCheck.visibility = View.GONE
+                holder.ivSelectionCheck.isClickable = false
+            }
 
             try {
                 val thumbFile = File(item.page.thumbnailPath)
@@ -1389,11 +1966,60 @@ class LoadoutView(
             }
 
             holder.tile.setOnClickListener {
-                onPhotoClick(item)
+                if (isSelectionMode()) {
+                    toggleSelection(item)
+                } else {
+                    onPhotoClick(item)
+                }
             }
             holder.tile.setOnLongClickListener {
-                onPhotoLongClick(item)
+                if (!isSelectionMode()) {
+                    toggleSelection(item)
+                    holder.tile.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                }
                 true
+            }
+            holder.ivSelectionCheck.setOnClickListener {
+                if (isSelectionMode()) {
+                    toggleSelection(item)
+                }
+            }
+        }
+
+        override fun getItemCount(): Int = items.size
+    }
+
+    inner class GalleryDetailPagerAdapter(
+        private val items: List<GalleryPhotoItem>
+    ) : RecyclerView.Adapter<GalleryDetailPagerAdapter.DetailViewHolder>() {
+
+        inner class DetailViewHolder(val container: FrameLayout, val ivPhoto: ImageView) : RecyclerView.ViewHolder(container)
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DetailViewHolder {
+            val fl = FrameLayout(parent.context).apply {
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                setBackgroundColor(Color.BLACK)
+            }
+            val iv = ImageView(parent.context).apply {
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
+                    gravity = Gravity.CENTER
+                }
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            }
+            fl.addView(iv)
+            return DetailViewHolder(fl, iv)
+        }
+
+        override fun onBindViewHolder(holder: DetailViewHolder, position: Int) {
+            val item = items[position]
+            try {
+                val opts = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                }
+                val bmp = BitmapFactory.decodeFile(item.page.thumbnailPath, opts)
+                holder.ivPhoto.setImageBitmap(bmp)
+            } catch (_: Exception) {
+                holder.ivPhoto.setImageDrawable(null)
             }
         }
 

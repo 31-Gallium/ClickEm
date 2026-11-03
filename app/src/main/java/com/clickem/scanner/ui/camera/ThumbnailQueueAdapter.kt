@@ -224,9 +224,6 @@ class ThumbnailQueueAdapter(
             }
         }
         notifyItemMoved(fromPosition, toPosition)
-        val start = minOf(fromPosition, toPosition)
-        val count = kotlin.math.abs(toPosition - fromPosition) + 1
-        notifyItemRangeChanged(start, count)
     }
 
     fun onItemDismiss(position: Int) {

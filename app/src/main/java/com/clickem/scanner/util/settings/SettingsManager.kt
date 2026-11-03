@@ -89,6 +89,21 @@ class SettingsManager(private val context: Context) {
             .apply()
     }
 
+    var scansFolderUri: String?
+        get() = prefs.getString(KEY_SCANS_FOLDER_URI, null)
+        set(value) = prefs.edit().putString(KEY_SCANS_FOLDER_URI, value).apply()
+
+    var scansFolderPath: String
+        get() = prefs.getString(KEY_SCANS_FOLDER_PATH, "Internal App Storage (Default)") ?: "Internal App Storage (Default)"
+        set(value) = prefs.edit().putString(KEY_SCANS_FOLDER_PATH, value).apply()
+
+    fun resetScansFolder() {
+        prefs.edit()
+            .remove(KEY_SCANS_FOLDER_URI)
+            .remove(KEY_SCANS_FOLDER_PATH)
+            .apply()
+    }
+
     /**
      * Multi-level hardware check verified for Tecno Pova, Infinix, MediaTek, and Samsung/Pixel devices:
      * Checks PackageManager feature flags, AndroidX BiometricManager, and FingerprintManagerCompat.
@@ -121,5 +136,7 @@ class SettingsManager(private val context: Context) {
         private const val KEY_EXPORT_QUALITY = "pref_export_quality"
         private const val KEY_EXPORT_FOLDER_URI = "pref_export_folder_uri"
         private const val KEY_EXPORT_FOLDER_PATH = "pref_export_folder_path"
+        private const val KEY_SCANS_FOLDER_URI = "pref_scans_folder_uri"
+        private const val KEY_SCANS_FOLDER_PATH = "pref_scans_folder_path"
     }
 }

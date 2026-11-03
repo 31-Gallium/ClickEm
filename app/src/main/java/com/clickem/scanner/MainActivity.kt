@@ -41,6 +41,7 @@ import com.clickem.scanner.ui.settings.SettingsView
 import com.clickem.scanner.util.cv.TfliteDocumentDetector
 import com.clickem.scanner.util.settings.SettingsManager
 import com.clickem.scanner.util.settings.VolumeKeyAction
+import com.clickem.scanner.util.BackPressHandler
 import com.clickem.scanner.util.storage.ScanStorageManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loadingProgressBar: ProgressBar
 
     private var cameraView: CameraView? = null
+    private var pendingAppendBatchView: BatchReviewView? = null
+    private var pendingAppendProject: DocumentProject? = null
     // True LIFO backstack for overlay navigation
     private val overlayBackStack = ArrayDeque<View>()
     private var lastKnownWindowInsets: androidx.core.view.WindowInsetsCompat? = null
@@ -85,7 +88,7 @@ class MainActivity : AppCompatActivity() {
 
     private var currentSettingsView: SettingsView? = null
 
-    // Storage Access Framework folder picker launcher
+    // Storage Access Framework folder picker launcher for exports
     private val folderPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -101,6 +104,25 @@ class MainActivity : AppCompatActivity() {
             settingsManager.exportFolderPath = displayPath
             currentSettingsView?.updateExportLocation(displayPath)
             Toast.makeText(this, "Export location set to: $displayPath", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Storage Access Framework folder picker launcher for scans
+    private val scansFolderPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            try {
+                contentResolver.takePersistableUriPermission(uri, takeFlags)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            val displayPath = formatTreeUriDisplayPath(uri)
+            settingsManager.scansFolderUri = uri.toString()
+            settingsManager.scansFolderPath = displayPath
+            currentSettingsView?.updateScansLocation(displayPath)
+            Toast.makeText(this, "Scans location set to: $displayPath", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -202,7 +224,11 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             .hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-        cameraView?.resumeSensor()
+        if (overlayBackStack.isEmpty() || cameraView?.isRetakeModeActive() == true) {
+            cameraView?.activateCamera()
+        } else {
+            cameraView?.deactivateCamera()
+        }
         rootContainer.requestFocus()
         cameraView?.requestFocus()
         startFingerprintListener()
@@ -210,7 +236,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        cameraView?.pauseSensor()
+        cameraView?.deactivateCamera()
         stopFingerprintListener()
     }
 
@@ -359,13 +385,40 @@ class MainActivity : AppCompatActivity() {
                 if (cameraView?.isRetakeModeActive() == true) {
                     cameraView?.cancelRetakeMode()
                 }
-                showBatchReview(pages)
+                val appendingBv = pendingAppendBatchView
+                if (appendingBv != null) {
+                    appendingBv.pages.addAll(pages)
+                    appendingBv.notifyPagesUpdated()
+                    pendingAppendBatchView = null
+                    pendingAppendProject = null
+                    cameraView?.clearActivePages()
+                    cameraView?.setIsCoveredByOverlay(true)
+                    cameraView?.visibility = View.GONE
+                    appendingBv.visibility = View.VISIBLE
+                    appendingBv.alpha = 1f
+                    appendingBv.translationY = 0f
+                    Toast.makeText(this, "Added ${pages.size} new ${if (pages.size == 1) "page" else "pages"}", Toast.LENGTH_SHORT).show()
+                } else {
+                    showBatchReview(pages)
+                }
             },
             onLoadoutRequested = {
                 if (cameraView?.isRetakeModeActive() == true) {
                     cameraView?.cancelRetakeMode()
                 }
-                showLoadout()
+                val appendingBv = pendingAppendBatchView
+                if (appendingBv != null) {
+                    pendingAppendBatchView = null
+                    pendingAppendProject = null
+                    cameraView?.clearActivePages()
+                    cameraView?.setIsCoveredByOverlay(true)
+                    cameraView?.visibility = View.GONE
+                    appendingBv.visibility = View.VISIBLE
+                    appendingBv.alpha = 1f
+                    appendingBv.translationY = 0f
+                } else {
+                    showLoadout()
+                }
             },
             onSettingsRequested = {
                 showSettings()
@@ -573,8 +626,13 @@ class MainActivity : AppCompatActivity() {
             },
             onLoadoutRequested = {
                 cameraView?.clearActivePages()
-                popOverlay()
                 showLoadout()
+                overlayBackStack.remove(batchView)
+                rootContainer.removeView(batchView)
+            },
+            onSnapNewPagesRequested = {
+                cameraView?.refreshQueue()
+                popOverlay()
             },
             existingProject = null
         )
@@ -610,12 +668,10 @@ class MainActivity : AppCompatActivity() {
         lateinit var batchView: BatchReviewView
         batchView = BatchReviewView(
             context = this,
-            pages = project.pages,
+            pages = project.pages.map { it.copyPage() }.toMutableList(),
             storageManager = storageManager,
             onEditPageRequested = { allPages, idx ->
                 showMultiPageEditor(allPages, idx) {
-                    project.updatedAt = System.currentTimeMillis()
-                    storageManager.saveProject(project)
                     batchView.notifyPagesUpdated()
                 }
             },
@@ -625,9 +681,24 @@ class MainActivity : AppCompatActivity() {
             onLoadoutRequested = {
                 popOverlay()
             },
+            onSnapNewPagesRequested = {
+                openCameraToAppendPages(batchView, project)
+            },
             existingProject = project
         )
         pushOverlay(batchView)
+    }
+
+    private fun openCameraToAppendPages(batchView: BatchReviewView, project: DocumentProject) {
+        pendingAppendBatchView = batchView
+        pendingAppendProject = project
+        batchView.visibility = View.GONE
+        cameraView?.visibility = View.VISIBLE
+        cameraView?.clearActivePages()
+        cameraView?.setIsCoveredByOverlay(false)
+        cameraView?.requestFocus()
+        startFingerprintListener()
+        Toast.makeText(this, "Camera ready: snap new pages to add to ${project.title}", Toast.LENGTH_SHORT).show()
     }
 
     private fun showSettings() {
@@ -642,6 +713,10 @@ class MainActivity : AppCompatActivity() {
             onPickExportFolder = {
                 val initialUri = settingsManager.exportFolderUri?.let { Uri.parse(it) }
                 folderPickerLauncher.launch(initialUri)
+            },
+            onPickScansFolder = {
+                val initialUri = settingsManager.scansFolderUri?.let { Uri.parse(it) }
+                scansFolderPickerLauncher.launch(initialUri)
             }
         )
         currentSettingsView = settingsView
@@ -654,9 +729,6 @@ class MainActivity : AppCompatActivity() {
     private fun pushOverlay(view: View) {
         stopFingerprintListener()
         val currentTop = overlayBackStack.peek()
-        if (currentTop != null) {
-            currentTop.visibility = View.GONE
-        }
 
         // Prevent click/touch pass-through to underlying screens
         view.isClickable = true
@@ -675,6 +747,14 @@ class MainActivity : AppCompatActivity() {
             .alpha(1f)
             .translationY(0f)
             .setDuration(200)
+            .withEndAction {
+                if (currentTop != null && currentTop != overlayBackStack.peek()) {
+                    currentTop.visibility = View.GONE
+                }
+                if (overlayBackStack.isNotEmpty() && cameraView?.isRetakeModeActive() != true) {
+                    cameraView?.visibility = View.GONE
+                }
+            }
             .start()
     }
 
@@ -688,27 +768,28 @@ class MainActivity : AppCompatActivity() {
         if (topView is SettingsView) {
             currentSettingsView = null
         }
+        val previousView = overlayBackStack.peek()
+        if (previousView != null && cameraView?.isRetakeModeActive() != true) {
+            previousView.visibility = View.VISIBLE
+            previousView.alpha = 1f
+            previousView.translationY = 0f
+            if (previousView is LoadoutView) {
+                previousView.refreshProjects()
+            }
+        } else {
+            cameraView?.visibility = View.VISIBLE
+            cameraView?.setIsCoveredByOverlay(false)
+            rootContainer.requestFocus()
+            cameraView?.requestFocus()
+            startFingerprintListener()
+        }
+
         topView.animate()
             .alpha(0f)
             .translationY(40f)
             .setDuration(160)
             .withEndAction {
                 rootContainer.removeView(topView)
-                val previousView = overlayBackStack.peek()
-                if (previousView != null && cameraView?.isRetakeModeActive() != true) {
-                    previousView.visibility = View.VISIBLE
-                    previousView.alpha = 1f
-                    previousView.translationY = 0f
-                    if (previousView is LoadoutView) {
-                        previousView.refreshProjects()
-                    }
-                } else {
-                    previousView?.visibility = View.GONE
-                    cameraView?.setIsCoveredByOverlay(false)
-                    rootContainer.requestFocus()
-                    cameraView?.requestFocus()
-                    startFingerprintListener()
-                }
             }
             .start()
         return true
@@ -851,7 +932,23 @@ class MainActivity : AppCompatActivity() {
     private fun setupBackPressHandling() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                val appendingBv = pendingAppendBatchView
+                if (appendingBv != null) {
+                    pendingAppendBatchView = null
+                    pendingAppendProject = null
+                    cameraView?.clearActivePages()
+                    cameraView?.setIsCoveredByOverlay(true)
+                    cameraView?.visibility = View.GONE
+                    appendingBv.visibility = View.VISIBLE
+                    appendingBv.alpha = 1f
+                    appendingBv.translationY = 0f
+                    return
+                }
+
                 val topOverlay = overlayBackStack.peek()
+                if (topOverlay is BackPressHandler && topOverlay.handleBackPressed()) {
+                    return
+                }
                 if (topOverlay != null && topOverlay.visibility == View.VISIBLE) {
                     popOverlay()
                     return

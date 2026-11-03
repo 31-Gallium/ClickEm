@@ -219,16 +219,13 @@ class M2ThemeRegressionChallengeTest {
         val doc = docBuilder.parse(launcherFile)
         val paths = doc.documentElement.getElementsByTagName("path")
 
-        assertEquals("ic_launcher.xml must contain 3 paths (arcs, squares, body)", 3, paths.length)
+        assertEquals("ic_launcher.xml must contain 7 paths for authentic ClickEm logo", 7, paths.length)
 
-        val arcs = paths.item(0) as Element
-        val squares = paths.item(1) as Element
-        val cameraBody = paths.item(2) as Element
+        val squircle = paths.item(0) as Element
+        val accent = paths.item(1) as Element
 
-        assertEquals("#231F20", arcs.getAttribute("android:fillColor"))
-        assertEquals("#6D6E71", squares.getAttribute("android:fillColor"))
-        assertEquals("#00AEEF", cameraBody.getAttribute("android:fillColor"))
-        assertEquals("evenOdd", cameraBody.getAttribute("android:fillType"))
+        assertEquals("#D1DDF0", squircle.getAttribute("android:fillColor"))
+        assertEquals("#98DDF0", accent.getAttribute("android:fillColor"))
     }
 
     @Test

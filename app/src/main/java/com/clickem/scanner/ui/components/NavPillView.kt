@@ -35,7 +35,7 @@ class NavPillView @JvmOverloads constructor(
         background = GradientDrawable().apply {
             cornerRadius = 32f * density
             setColor(Color.parseColor("#F00E1118"))
-            setStroke((1.2f * density).toInt(), Color.parseColor("#32FFFFFF"))
+            setStroke((1.5f * density).toInt(), Color.parseColor("#38FFFFFF"))
             setDither(true)
         }
         elevation = 0f

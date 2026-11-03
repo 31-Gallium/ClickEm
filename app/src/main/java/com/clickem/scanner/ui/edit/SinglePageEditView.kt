@@ -443,8 +443,8 @@ class SinglePageEditView(
             val topR = 26f * density
             val bg = GradientDrawable().apply {
                 cornerRadii = floatArrayOf(topR, topR, topR, topR, 0f, 0f, 0f, 0f)
-                setColor(Color.parseColor("#F00D1017"))
-                setStroke((1.2f * density).toInt(), Color.parseColor("#28FFFFFF"))
+                setColor(Color.parseColor("#F2000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#38FFFFFF"))
             }
             background = bg
             elevation = 0f
@@ -852,7 +852,7 @@ class SinglePageEditView(
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 background = GradientDrawable().apply {
                     cornerRadius = 8f * density
-                    setColor(Color.parseColor("#12151D"))
+                    setColor(Color.parseColor("#000000"))
                 }
                 clipToOutline = true
                 val staticThumbnails = ensureStaticThumbnailsSync()
@@ -900,7 +900,7 @@ class SinglePageEditView(
                 setColor(Color.parseColor("#25FFFFFF"))
                 setStroke((2 * density).toInt(), Color.parseColor("#FFFFFF"))
             } else {
-                setColor(Color.parseColor("#E612151D"))
+                setColor(Color.parseColor("#E6000000"))
                 setStroke((1 * density).toInt(), Color.parseColor("#35FFFFFF"))
             }
         }

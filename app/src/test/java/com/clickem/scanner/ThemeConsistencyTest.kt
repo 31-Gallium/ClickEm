@@ -90,10 +90,10 @@ class ThemeConsistencyTest {
 
         for (file in listOf(launcher, launcherRound)) {
             val content = file.readText()
-            assertTrue("${file.name} camera body must be authentic #00AEEF", content.contains("android:fillColor=\"#00AEEF\""))
-            assertTrue("${file.name} reticle arcs must be #231F20", content.contains("android:fillColor=\"#231F20\""))
-            assertTrue("${file.name} reticle squares must be #6D6E71", content.contains("android:fillColor=\"#6D6E71\""))
-            assertTrue("${file.name} must have evenOdd fillType for transparent cutout", content.contains("android:fillType=\"evenOdd\""))
+            assertTrue("${file.name} base squircle must be authentic #D1DDF0", content.contains("android:fillColor=\"#D1DDF0\""))
+            assertTrue("${file.name} diagonal accent must be #98DDF0", content.contains("android:fillColor=\"#98DDF0\""))
+            assertTrue("${file.name} gradient must include #FF1707FA", content.contains("android:color=\"#FF1707FA\""))
+            assertTrue("${file.name} gradient must include #FF1543FD", content.contains("android:color=\"#FF1543FD\""))
         }
     }
 

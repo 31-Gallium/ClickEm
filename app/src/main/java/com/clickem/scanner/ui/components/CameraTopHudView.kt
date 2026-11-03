@@ -105,9 +105,16 @@ class CameraTopHudView @JvmOverloads constructor(
         }
         controlsRow.addView(wrapCenteredSlot(btnTorch))
 
+        val initialRatio = try {
+            com.clickem.scanner.util.settings.SettingsManager(context).cameraAspectRatio
+        } catch (_: Exception) {
+            "4:3"
+        }
+        currentRatio = initialRatio
+
         btnRatio = TextView(context).apply {
-            text = "4:3"
-            contentDescription = "Aspect ratio 4:3"
+            text = initialRatio
+            contentDescription = "Aspect ratio $initialRatio"
             textSize = 11.5f
             setTextColor(Color.parseColor("#F8FAFC"))
             paint.isFakeBoldText = true

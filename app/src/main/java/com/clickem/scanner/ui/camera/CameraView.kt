@@ -75,6 +75,7 @@ class CameraView(
     private val previewView: PreviewView
     private var imageCapture: ImageCapture? = null
     private var camera: Camera? = null
+    private var cameraProvider: ProcessCameraProvider? = null
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     private var cameraTargetRatio = AspectRatio.RATIO_4_3
     var currentRatioString: String = "4:3"
@@ -258,6 +259,9 @@ class CameraView(
                 setCameraMode(qrEnabled)
             }
             onRatioToggled = { ratioStr ->
+                try {
+                    com.clickem.scanner.util.settings.SettingsManager(context).cameraAspectRatio = ratioStr
+                } catch (_: Exception) {}
                 setAspectRatio(ratioStr)
             }
             onGridToggled = { gridOn ->
@@ -440,6 +444,7 @@ class CameraView(
         thumbnailRv = RecyclerView(context).apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             adapter = thumbnailAdapter
+            (itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
             val hPad = (12 * density).toInt()
             setPadding(hPad, (10 * density).toInt(), hPad, (2 * density).toInt())
             clipToPadding = false
@@ -486,7 +491,12 @@ class CameraView(
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
                 tvTrashHint.visibility = View.GONE
-                viewHolder.itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                viewHolder.itemView.animate().cancel()
+                viewHolder.itemView.scaleX = 1f
+                viewHolder.itemView.scaleY = 1f
+                viewHolder.itemView.translationX = 0f
+                viewHolder.itemView.translationY = 0f
+                thumbnailAdapter.notifyDataSetChanged()
             }
         })
         itemTouchHelper.attachToRecyclerView(thumbnailRv)
@@ -834,9 +844,12 @@ class CameraView(
 
     @Suppress("DEPRECATION")
     private fun startCamera() {
+        if (isCoveredByOverlay && !isRetakeModeActive()) return
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
+            if (isCoveredByOverlay && !isRetakeModeActive()) return@addListener
+            val provider = cameraProviderFuture.get()
+            cameraProvider = provider
 
             val preview = Preview.Builder()
                 .setTargetAspectRatio(cameraTargetRatio)
@@ -864,8 +877,8 @@ class CameraView(
 
             try {
                 camera?.cameraInfo?.zoomState?.removeObservers(lifecycleOwner)
-                cameraProvider.unbindAll()
-                camera = cameraProvider.bindToLifecycle(
+                provider.unbindAll()
+                camera = provider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
@@ -874,7 +887,7 @@ class CameraView(
                 )
             } catch (e: Exception) {
                 try {
-                    camera = cameraProvider.bindToLifecycle(
+                    camera = provider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
                         preview,
@@ -1037,8 +1050,34 @@ class CameraView(
 
     var isCoveredByOverlay: Boolean = false
 
+    fun activateCamera() {
+        previewView.visibility = View.VISIBLE
+        resumeSensor()
+        startCamera()
+    }
+
+    fun deactivateCamera() {
+        pauseSensor()
+        try {
+            camera?.cameraInfo?.zoomState?.removeObservers(lifecycleOwner)
+            cameraProvider?.unbindAll()
+            camera = null
+            previewView.visibility = View.INVISIBLE
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun setIsCoveredByOverlay(covered: Boolean) {
+        val wasCovered = isCoveredByOverlay
         isCoveredByOverlay = covered
+        if (wasCovered != covered) {
+            if (covered && !isRetakeModeActive()) {
+                deactivateCamera()
+            } else if (!covered) {
+                activateCamera()
+            }
+        }
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

@@ -125,15 +125,69 @@ class BatchGridAdapter(
     private val onPageLongClick: ((Int) -> Unit)? = null
 ) : RecyclerView.Adapter<BatchGridAdapter.ViewHolder>() {
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return if (position in pages.indices) pages[position].id.hashCode().toLong() else RecyclerView.NO_ID
+    }
+
     var onRequestDrag: ((RecyclerView.ViewHolder) -> Unit)? = null
+    val selectedPositions = mutableSetOf<Int>()
+    var ghostPositions: Set<Int> = emptySet()
+    var bulkDraggedHiddenPositions: Set<Int>
+        get() = ghostPositions
+        set(value) { ghostPositions = value }
+    var onSelectionChanged: ((Set<Int>) -> Unit)? = null
+
+    fun isSelectionMode(): Boolean = selectedPositions.isNotEmpty()
+
+    fun toggleSelection(pos: Int) {
+        val wasMode = isSelectionMode()
+        if (selectedPositions.contains(pos)) {
+            selectedPositions.remove(pos)
+        } else {
+            selectedPositions.add(pos)
+        }
+        val isNowMode = isSelectionMode()
+        if (wasMode != isNowMode) {
+            notifyDataSetChanged()
+        } else {
+            notifyItemChanged(pos)
+        }
+        onSelectionChanged?.invoke(selectedPositions.toSet())
+    }
+
+    fun clearSelection() {
+        selectedPositions.clear()
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(selectedPositions.toSet())
+    }
+
+    fun selectAll() {
+        selectedPositions.clear()
+        for (i in pages.indices) {
+            selectedPositions.add(i)
+        }
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(selectedPositions.toSet())
+    }
 
     class ViewHolder(
         val root: FrameLayout,
+        val cascadeLayer4: FrameLayout,
+        val cascadeLayer3: FrameLayout,
+        val cascadeLayer2: FrameLayout,
+        val cascadeLayer1: FrameLayout,
+        val mainCard: FrameLayout,
         val ivThumb: ImageView,
         val tvBadge: TextView,
         val btnDelete: ImageView,
         val btnRotate: ImageView,
-        val progressOutline: CardOutlineProgressView
+        val progressOutline: CardOutlineProgressView,
+        val ivSelectionCheck: ImageView,
+        val tvStackCountBadge: TextView
     ) : RecyclerView.ViewHolder(root) {
         var holdAnimator: ValueAnimator? = null
         var isHolding = false
@@ -156,10 +210,77 @@ class BatchGridAdapter(
             layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h).apply {
                 setMargins(m, m, m, m)
             }
+            clipChildren = false
+            clipToPadding = false
+        }
+
+        // Cascading Stack Layer 4 (backmost card in bulk drag: 5th card in stack)
+        val cascadeLayer4 = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             background = GradientDrawable().apply {
                 cornerRadius = 16f * density
-                setColor(Color.parseColor("#12151D"))
-                setStroke((1.5f * density).toInt(), Color.parseColor("#35FFFFFF"))
+                setColor(Color.parseColor("#000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#26FFFFFF"))
+            }
+            rotation = 7f
+            translationX = 12f * density
+            translationY = 12f * density
+            visibility = View.GONE
+        }
+        root.addView(cascadeLayer4)
+
+        // Cascading Stack Layer 3 (4th card in stack)
+        val cascadeLayer3 = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            background = GradientDrawable().apply {
+                cornerRadius = 16f * density
+                setColor(Color.parseColor("#000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#36FFFFFF"))
+            }
+            rotation = -5f
+            translationX = 9f * density
+            translationY = 9f * density
+            visibility = View.GONE
+        }
+        root.addView(cascadeLayer3)
+
+        // Cascading Stack Layer 2 (3rd card in stack)
+        val cascadeLayer2 = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            background = GradientDrawable().apply {
+                cornerRadius = 16f * density
+                setColor(Color.parseColor("#000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#48FFFFFF"))
+            }
+            rotation = 4f
+            translationX = 6f * density
+            translationY = 6f * density
+            visibility = View.GONE
+        }
+        root.addView(cascadeLayer2)
+
+        // Cascading Stack Layer 1 (2nd card in stack)
+        val cascadeLayer1 = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            background = GradientDrawable().apply {
+                cornerRadius = 16f * density
+                setColor(Color.parseColor("#000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#60FFFFFF"))
+            }
+            rotation = -2f
+            translationX = 3f * density
+            translationY = 3f * density
+            visibility = View.GONE
+        }
+        root.addView(cascadeLayer1)
+
+        // Front Main Card Container
+        val mainCard = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            background = GradientDrawable().apply {
+                cornerRadius = 16f * density
+                setColor(Color.parseColor("#000000"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#38FFFFFF"))
             }
             clipToOutline = true
         }
@@ -168,7 +289,7 @@ class BatchGridAdapter(
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
-        root.addView(ivThumb)
+        mainCard.addView(ivThumb)
 
         // Top-left Page Badge Tag
         val tvBadge = TextView(context).apply {
@@ -191,7 +312,7 @@ class BatchGridAdapter(
                 setMargins(m, m, m, m)
             }
         }
-        root.addView(tvBadge)
+        mainCard.addView(tvBadge)
 
         // Top-right Delete Trash Button
         val btnDelete = ImageView(context).apply {
@@ -213,7 +334,28 @@ class BatchGridAdapter(
                 setMargins(m, m, m, m)
             }
         }
-        root.addView(btnDelete)
+        mainCard.addView(btnDelete)
+
+        // Selection Checkmark / Outline Badge
+        val ivSelectionCheck = ImageView(context).apply {
+            val btnSz = (32 * density).toInt()
+            val bg = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+            background = bg
+            val p = (6 * density).toInt()
+            setPadding(p, p, p, p)
+            setImageResource(R.drawable.ic_check)
+            setColorFilter(Color.BLACK)
+            layoutParams = FrameLayout.LayoutParams(btnSz, btnSz).apply {
+                gravity = Gravity.TOP or Gravity.END
+                val m = (8 * density).toInt()
+                setMargins(m, m, m, m)
+            }
+            visibility = View.GONE
+        }
+        mainCard.addView(ivSelectionCheck)
 
         // Bottom-right Rotate Button
         val btnRotate = ImageView(context).apply {
@@ -235,7 +377,7 @@ class BatchGridAdapter(
                 setMargins(m, m, m, m)
             }
         }
-        root.addView(btnRotate)
+        mainCard.addView(btnRotate)
 
         // Perimeter progress outline view for hold feedback
         val progressOutline = CardOutlineProgressView(context).apply {
@@ -243,15 +385,102 @@ class BatchGridAdapter(
             isClickable = false
             isFocusable = false
         }
-        root.addView(progressOutline)
+        mainCard.addView(progressOutline)
+        root.addView(mainCard)
 
-        return ViewHolder(root, ivThumb, tvBadge, btnDelete, btnRotate, progressOutline)
+        // Cascading Stack Count Pill Badge (shows count of dragged items in bulk drag)
+        val tvStackCountBadge = TextView(context).apply {
+            textSize = 11.5f
+            setTextColor(Color.BLACK)
+            paint.isFakeBoldText = true
+            gravity = Gravity.CENTER
+            val sz = (28 * density).toInt()
+            val bg = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+                setStroke((1 * density).toInt(), Color.parseColor("#40000000"))
+            }
+            background = bg
+            elevation = 16f * density
+            layoutParams = FrameLayout.LayoutParams(sz, sz).apply {
+                gravity = Gravity.TOP or Gravity.START
+                val m = (4 * density).toInt()
+                setMargins(m, m, m, m)
+            }
+            visibility = View.GONE
+        }
+        root.addView(tvStackCountBadge)
+
+        return ViewHolder(
+            root, cascadeLayer4, cascadeLayer3, cascadeLayer2, cascadeLayer1, mainCard,
+            ivThumb, tvBadge, btnDelete, btnRotate, progressOutline, ivSelectionCheck, tvStackCountBadge
+        )
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val page = pages[position]
         holder.tvBadge.text = "PAGE ${position + 1}"
         holder.cancelHoldProgress()
+
+        // Reset cascading layers
+        holder.cascadeLayer1.visibility = View.GONE
+        holder.cascadeLayer2.visibility = View.GONE
+        holder.cascadeLayer3.visibility = View.GONE
+        holder.cascadeLayer4.visibility = View.GONE
+        holder.tvStackCountBadge.visibility = View.GONE
+        holder.root.elevation = 0f
+
+        if (ghostPositions.contains(position)) {
+            holder.root.alpha = 0.35f
+            holder.root.scaleX = 0.94f
+            holder.root.scaleY = 0.94f
+        } else {
+            holder.root.alpha = 1f
+            holder.root.scaleX = 1f
+            holder.root.scaleY = 1f
+        }
+
+        val density = holder.root.context.resources.displayMetrics.density
+        val isSelected = selectedPositions.contains(position)
+        val isMode = isSelectionMode()
+        val cardBg = holder.mainCard.background as? GradientDrawable
+
+        if (isSelected) {
+            cardBg?.setStroke((2.5f * density).toInt(), Color.parseColor("#FFFFFF"))
+            holder.ivSelectionCheck.visibility = View.VISIBLE
+            holder.ivSelectionCheck.isClickable = true
+            holder.ivSelectionCheck.setImageResource(R.drawable.ic_check)
+            holder.ivSelectionCheck.setColorFilter(Color.BLACK)
+            (holder.ivSelectionCheck.background as? GradientDrawable)?.apply {
+                setColor(Color.WHITE)
+                setStroke(0, Color.TRANSPARENT)
+            }
+            holder.btnDelete.visibility = View.GONE
+            holder.btnDelete.isClickable = false
+            holder.btnRotate.visibility = View.GONE
+            holder.btnRotate.isClickable = false
+        } else if (isMode) {
+            cardBg?.setStroke((1.5f * density).toInt(), Color.parseColor("#25FFFFFF"))
+            holder.ivSelectionCheck.visibility = View.VISIBLE
+            holder.ivSelectionCheck.isClickable = true
+            holder.ivSelectionCheck.setImageDrawable(null)
+            (holder.ivSelectionCheck.background as? GradientDrawable)?.apply {
+                setColor(Color.TRANSPARENT)
+                setStroke((1.5f * density).toInt(), Color.parseColor("#80FFFFFF"))
+            }
+            holder.btnDelete.visibility = View.GONE
+            holder.btnDelete.isClickable = false
+            holder.btnRotate.visibility = View.GONE
+            holder.btnRotate.isClickable = false
+        } else {
+            cardBg?.setStroke((1.5f * density).toInt(), Color.parseColor("#38FFFFFF"))
+            holder.ivSelectionCheck.visibility = View.GONE
+            holder.ivSelectionCheck.isClickable = false
+            holder.btnDelete.visibility = View.VISIBLE
+            holder.btnDelete.isClickable = true
+            holder.btnRotate.visibility = View.VISIBLE
+            holder.btnRotate.isClickable = true
+        }
 
         try {
             val options = BitmapFactory.Options().apply {
@@ -270,6 +499,7 @@ class BatchGridAdapter(
         var downY = 0f
         var downTime = 0L
         var holdCompleted = false
+        var isDragStarted = false
 
         holder.root.setOnTouchListener { v, event ->
             when (event.actionMasked) {
@@ -278,66 +508,111 @@ class BatchGridAdapter(
                     downY = event.y
                     downTime = System.currentTimeMillis()
                     holdCompleted = false
+                    isDragStarted = false
                     holder.isHolding = true
 
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+
                     holder.holdAnimator?.cancel()
-                    val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-                        duration = 750L // Increased hold threshold for context menu
-                        interpolator = LinearInterpolator()
-                        addUpdateListener { va ->
-                            val frac = va.animatedValue as Float
-                            holder.progressOutline.progress = frac
-                            if (frac >= 1f && !holdCompleted) {
-                                holdCompleted = true
-                                holder.cancelHoldProgress()
-                                v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                val pos = holder.bindingAdapterPosition
-                                if (pos != RecyclerView.NO_POSITION) {
-                                    onPageLongClick?.invoke(pos)
+                    if (!isSelectionMode()) {
+                        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+                            duration = 750L
+                            interpolator = LinearInterpolator()
+                            addUpdateListener { va ->
+                                val frac = va.animatedValue as Float
+                                holder.progressOutline.progress = frac
+                                if (frac >= 1f && !holdCompleted && !isDragStarted) {
+                                    holdCompleted = true
+                                    holder.cancelHoldProgress()
+                                    v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    val pos = holder.bindingAdapterPosition
+                                    if (pos != RecyclerView.NO_POSITION) {
+                                        toggleSelection(pos)
+                                    }
                                 }
                             }
                         }
+                        holder.holdAnimator = animator
+                        animator.start()
+                    } else {
+                        holder.progressOutline.progress = 0f
                     }
-                    holder.holdAnimator = animator
-                    animator.start()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    if (isDragStarted) {
+                        return@setOnTouchListener false
+                    }
                     val dx = Math.abs(event.x - downX)
                     val dy = Math.abs(event.y - downY)
                     if (dx > touchSlop || dy > touchSlop) {
-                        if (!holdCompleted) {
-                            val elapsed = System.currentTimeMillis() - downTime
+                        val elapsed = System.currentTimeMillis() - downTime
+                        if (isSelectionMode() && isSelected) {
+                            // In selection mode on a selected card: always initiate drag immediately!
+                            isDragStarted = true
                             holder.cancelHoldProgress()
-                            // If user held long enough before dragging (>= 220ms), trigger ItemTouchHelper drag!
-                            if (elapsed >= 220 && onRequestDrag != null) {
-                                onRequestDrag?.invoke(holder)
-                            }
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                            onRequestDrag?.invoke(holder)
+                            return@setOnTouchListener false
+                        } else if (dy > dx && elapsed < 160L) {
+                            // Quick vertical flick without holding: let RecyclerView scroll smoothly
+                            holder.cancelHoldProgress()
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                        } else if (elapsed >= 160L || dx > touchSlop * 1.5f) {
+                            // Intentional hold or horizontal movement: start drag
+                            isDragStarted = true
+                            holder.cancelHoldProgress()
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                            onRequestDrag?.invoke(holder)
+                            return@setOnTouchListener false
                         }
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(false)
                     val wasHolding = holder.isHolding
                     holder.cancelHoldProgress()
-                    if (!holdCompleted && wasHolding) {
+                    if (!isDragStarted && !holdCompleted && wasHolding) {
                         val duration = System.currentTimeMillis() - downTime
                         val dx = Math.abs(event.x - downX)
                         val dy = Math.abs(event.y - downY)
-                        if (duration < 450 && dx < touchSlop && dy < touchSlop) {
+                        if (duration < 350 && dx < touchSlop && dy < touchSlop) {
                             val pos = holder.bindingAdapterPosition
                             if (pos != RecyclerView.NO_POSITION) {
-                                onPageClick(pos)
+                                if (isSelectionMode()) {
+                                    toggleSelection(pos)
+                                } else {
+                                    onPageClick(pos)
+                                }
                             }
                         }
                     }
+                    isDragStarted = false
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(false)
                     holder.cancelHoldProgress()
+                    isDragStarted = false
                     true
                 }
                 else -> false
+            }
+        }
+
+        holder.tvBadge.setOnClickListener {
+            val currentPos = holder.bindingAdapterPosition
+            if (currentPos != RecyclerView.NO_POSITION) {
+                holder.cancelHoldProgress()
+                toggleSelection(currentPos)
+            }
+        }
+
+        holder.ivSelectionCheck.setOnClickListener {
+            val currentPos = holder.bindingAdapterPosition
+            if (currentPos != RecyclerView.NO_POSITION && isSelectionMode()) {
+                toggleSelection(currentPos)
             }
         }
 
@@ -355,6 +630,14 @@ class BatchGridAdapter(
     override fun onViewRecycled(holder: ViewHolder) {
         super.onViewRecycled(holder)
         holder.cancelHoldProgress()
+        holder.root.animate().cancel()
+        holder.root.alpha = 1f
+        holder.root.scaleX = 1f
+        holder.root.scaleY = 1f
+        holder.root.translationX = 0f
+        holder.root.translationY = 0f
+        holder.root.rotation = 0f
+        holder.root.elevation = 0f
     }
 
     override fun getItemCount(): Int = pages.size
@@ -370,8 +653,5 @@ class BatchGridAdapter(
             }
         }
         notifyItemMoved(fromPosition, toPosition)
-        val start = minOf(fromPosition, toPosition)
-        val count = kotlin.math.abs(toPosition - fromPosition) + 1
-        notifyItemRangeChanged(start, count)
     }
 }

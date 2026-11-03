@@ -25,12 +25,15 @@ class SettingsView(
     context: Context,
     private val settingsManager: SettingsManager,
     private val onClose: () -> Unit,
-    private val onPickExportFolder: (() -> Unit)? = null
+    private val onPickExportFolder: (() -> Unit)? = null,
+    private val onPickScansFolder: (() -> Unit)? = null
 ) : FrameLayout(context) {
 
     private val density = context.resources.displayMetrics.density
     private var tvExportPath: TextView? = null
     private var btnResetStorage: TextView? = null
+    private var tvScansPath: TextView? = null
+    private var btnResetScans: TextView? = null
 
     init {
         isClickable = true
@@ -559,6 +562,112 @@ class SettingsView(
         cardQuality.addView(qualityLayout)
         contentLayout.addView(cardQuality)
 
+        // Card: Scans Storage Location
+        val cardScansStorage = FrostCardView(context).apply {
+            val p = (16 * density).toInt()
+            setPadding(p, p, p, p)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (12 * density).toInt()
+            }
+            layoutParams = lp
+        }
+
+        val scansRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val scansCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f)
+        }
+
+        val tvScansLoc = TextView(context).apply {
+            text = "Scans Storage Location"
+            textSize = 13f
+            setTextColor(Color.parseColor("#f8fafc"))
+            paint.isFakeBoldText = true
+        }
+        scansCol.addView(tvScansLoc)
+
+        tvScansPath = TextView(context).apply {
+            text = settingsManager.scansFolderPath
+            textSize = 11f
+            setTextColor(Color.parseColor("#CBD5E1"))
+            setPadding(0, (2 * density).toInt(), 0, 0)
+        }
+        scansCol.addView(tvScansPath)
+        scansRow.addView(scansCol)
+
+        val btnScansActionsLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        btnResetScans = TextView(context).apply {
+            text = "Reset"
+            textSize = 11f
+            setTextColor(Color.parseColor("#94A3B8"))
+            paint.isFakeBoldText = true
+            setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+            visibility = if (settingsManager.scansFolderUri != null) View.VISIBLE else View.GONE
+            val bg = GradientDrawable().apply {
+                cornerRadius = 12 * density
+                setColor(Color.parseColor("#18202C"))
+                setStroke((1 * density).toInt(), Color.parseColor("#2D3B4E"))
+            }
+            background = bg
+            setOnClickListener {
+                settingsManager.resetScansFolder()
+                tvScansPath?.text = settingsManager.scansFolderPath
+                visibility = View.GONE
+                Toast.makeText(context, "Scans location reset to default", Toast.LENGTH_SHORT).show()
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                marginEnd = (6 * density).toInt()
+            }
+            layoutParams = lp
+        }
+        btnScansActionsLayout.addView(btnResetScans)
+
+        val btnBrowseScans = TextView(context).apply {
+            text = "Browse"
+            textSize = 11f
+            setTextColor(Color.parseColor("#FFFFFF"))
+            paint.isFakeBoldText = true
+            val hPad = (12 * density).toInt()
+            val vPad = (6 * density).toInt()
+            setPadding(hPad, vPad, hPad, vPad)
+            val bg = GradientDrawable().apply {
+                cornerRadius = 12 * density
+                setColor(Color.parseColor("#1E293B"))
+                setStroke((1 * density).toInt(), Color.parseColor("#334155"))
+            }
+            background = bg
+            contentDescription = "Browse and select scans folder"
+            setOnClickListener {
+                onPickScansFolder?.invoke()
+            }
+        }
+        btnScansActionsLayout.addView(btnBrowseScans)
+
+        scansRow.addView(btnScansActionsLayout)
+        cardScansStorage.addView(scansRow)
+        cardScansStorage.setOnClickListener {
+            onPickScansFolder?.invoke()
+        }
+        contentLayout.addView(cardScansStorage)
+
         val cardStorage = FrostCardView(context).apply {
             val p = (16 * density).toInt()
             setPadding(p, p, p, p)
@@ -862,5 +971,10 @@ class SettingsView(
     fun updateExportLocation(displayPath: String) {
         tvExportPath?.text = displayPath
         btnResetStorage?.visibility = if (settingsManager.exportFolderUri != null) View.VISIBLE else View.GONE
+    }
+
+    fun updateScansLocation(displayPath: String) {
+        tvScansPath?.text = displayPath
+        btnResetScans?.visibility = if (settingsManager.scansFolderUri != null) View.VISIBLE else View.GONE
     }
 }
